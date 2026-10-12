@@ -19,9 +19,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
       $stmt->execute([current_user()['id'],$total,$name,$phone,$address]); $orderId=(int)$pdo->lastInsertId();
       $itemStmt=$pdo->prepare('INSERT INTO order_items(order_id,product_id,product_name,size,quantity,unit_price) VALUES(?,?,?,?,?,?)');
       $stockStmt=$pdo->prepare('UPDATE products SET stock=stock-? WHERE id=?');
+      $logStmt=$pdo->prepare("INSERT INTO inventory_logs(product_id,change_qty,reason,reference_type,reference_id) VALUES(?,?,'Customer order','order',?)");
       foreach($cart as $item) {
         $itemStmt->execute([$orderId,$item['product_id'],$item['name'],$item['size'],$item['quantity'],$item['price']]);
         $stockStmt->execute([$item['quantity'],$item['product_id']]);
+        $logStmt->execute([$item['product_id'],-(int)$item['quantity'],$orderId]);
       }
       $pdo->commit(); unset($_SESSION['cart']); header('Location: orders.php?placed='.$orderId); exit;
     } catch (Throwable $e) {

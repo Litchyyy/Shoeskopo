@@ -24,7 +24,7 @@ $categories=$pdo->query('SELECT * FROM categories ORDER BY name')->fetchAll();
 $products=$pdo->query('SELECT p.*,c.name AS category_name FROM products p LEFT JOIN categories c ON c.id=p.category_id ORDER BY p.created_at DESC')->fetchAll();
 $pageTitle='Manage Products';include __DIR__.'/../includes/header.php';
 ?>
-<div class="admin-shell"><h1>PRODUCT CRUD</h1><nav class="admin-nav"><a href="index.php">Dashboard</a><a href="categories.php">Categories</a><a href="orders.php">Orders</a></nav>
+<div class="admin-shell"><h1>PRODUCT CRUD</h1><nav class="admin-nav"><a href="index.php">Dashboard</a><a href="products.php">Products</a><a href="categories.php">Categories</a><a href="suppliers.php">Suppliers</a><a href="inventory.php">Inventory</a><a href="users.php">Users</a><a href="reports.php">Reports & Expenses</a></nav>
 <?php if($error): ?><div class="form-error"><?= e($error) ?></div><?php endif; ?>
 <section class="form-wrap" style="margin:20px 0;max-width:800px"><h2><?= $edit?'Edit product':'Add product' ?></h2><form method="post"><input type="hidden" name="action" value="save"><input type="hidden" name="id" value="<?= (int)($edit['id']??0) ?>">
 <div class="field"><label>Name</label><input name="name" required value="<?= e($edit['name']??'') ?>"></div><div class="field"><label>Description</label><textarea name="description" rows="3"><?= e($edit['description']??'') ?></textarea></div>

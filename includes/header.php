@@ -2,6 +2,7 @@
 require_once __DIR__ . '/functions.php';
 $pageTitle = $pageTitle ?? 'shoeskopo';
 $user = current_user();
+$isAdminArea = strpos($_SERVER['SCRIPT_NAME'] ?? '', '/admin/') !== false;
 ?>
 <!doctype html>
 <html lang="en">
@@ -13,17 +14,19 @@ $user = current_user();
 </head>
 <body>
 <header class="site-header">
-  <a class="logo" href="/shoeskopo/index.php">shoeskopo</a>
+  <a class="logo" href="<?= $isAdminArea ? '/shoeskopo/admin/index.php' : '/shoeskopo/index.php' ?>">shoeskopo</a>
+  <?php if (!$isAdminArea): ?>
   <nav class="main-nav" aria-label="Main navigation">
     <a href="/shoeskopo/category.php?audience=men">Mens</a>
     <a href="/shoeskopo/category.php?audience=women">Womens</a>
     <a href="/shoeskopo/category.php?audience=kids">Kids</a>
   </nav>
+  <?php endif; ?>
   <div class="header-actions">
-    <a href="/shoeskopo/cart.php">CART (<?= array_sum(array_column($_SESSION['cart'] ?? [], 'quantity')) ?>)</a>
+    <?php if (!$isAdminArea): ?><a href="/shoeskopo/cart.php">CART (<?= array_sum(array_column($_SESSION['cart'] ?? [], 'quantity')) ?>)</a><?php endif; ?>
     <?php if ($user): ?>
       <?php if (in_array($user['role'], ['admin','employee'], true)): ?><a href="/shoeskopo/admin/index.php">DASHBOARD</a><?php endif; ?>
-      <a href="/shoeskopo/orders.php">ORDERS</a>
+      <?php if (!$isAdminArea): ?><a href="/shoeskopo/orders.php">ORDERS</a><?php endif; ?>
       <a href="/shoeskopo/logout.php">SIGN OUT</a>
     <?php else: ?>
       <a href="/shoeskopo/login.php">SIGN IN</a>
