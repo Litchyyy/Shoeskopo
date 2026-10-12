@@ -17,6 +17,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
       }
       $stmt=$pdo->prepare("INSERT INTO orders(user_id,total,status,full_name,phone,address) VALUES(?,?, 'Pending',?,?,?)");
       $stmt->execute([current_user()['id'],$total,$name,$phone,$address]); $orderId=(int)$pdo->lastInsertId();
+      $pay=$pdo->prepare("INSERT INTO payments(order_id,payment_method,payment_status,cash_received,change_due) VALUES(?,'Cash','Pending',0,0)");
+      $pay->execute([$orderId]);
       $itemStmt=$pdo->prepare('INSERT INTO order_items(order_id,product_id,product_name,size,quantity,unit_price) VALUES(?,?,?,?,?,?)');
       $stockStmt=$pdo->prepare('UPDATE products SET stock=stock-? WHERE id=?');
       $logStmt=$pdo->prepare("INSERT INTO inventory_logs(product_id,change_qty,reason,reference_type,reference_id) VALUES(?,?,'Customer order','order',?)");
@@ -25,7 +27,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $stockStmt->execute([$item['quantity'],$item['product_id']]);
         $logStmt->execute([$item['product_id'],-(int)$item['quantity'],$orderId]);
       }
-      $pdo->commit(); unset($_SESSION['cart']); header('Location: orders.php?placed='.$orderId); exit;
+      $pdo->commit(); unset($_SESSION['cart']); header('Location: receipt.php?order='.$orderId); exit;
     } catch (Throwable $e) {
       if ($pdo->inTransaction()) $pdo->rollBack();
       $error=$e instanceof RuntimeException ? $e->getMessage() : 'Could not place order. Please try again.';
@@ -34,5 +36,5 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
 }
 $pageTitle='Checkout'; include __DIR__ . '/includes/header.php';
 ?>
-<section class="section"><h1>CHECKOUT</h1><div class="product-detail" style="padding:20px 0"><div><section class="form-wrap" style="margin:0;max-width:none"><h2>Delivery details</h2><?php if($error): ?><div class="form-error"><?= e($error) ?></div><?php endif; ?><form method="post"><div class="field"><label>Full name</label><input name="full_name" required></div><div class="field"><label>Phone</label><input name="phone" required></div><div class="field"><label>Delivery address</label><textarea name="address" rows="4" required></textarea></div><p class="muted">Payment: Cash on delivery (starter option)</p><button class="btn btn-blue">PLACE ORDER</button></form></section></div><div><h2>Order summary</h2><?php foreach($cart as $item): ?><p><?= e($item['name']) ?> × <?= (int)$item['quantity'] ?> — <?= money($item['price']*$item['quantity']) ?></p><?php endforeach; ?><hr><h2>Total: <?= money($total) ?></h2></div></div></section>
+<section class="section"><h1>CHECKOUT</h1><div class="product-detail" style="padding:20px 0"><div><section class="form-wrap" style="margin:0;max-width:none"><h2>Delivery details</h2><?php if($error): ?><div class="form-error"><?= e($error) ?></div><?php endif; ?><form method="post"><div class="field"><label>Full name</label><input name="full_name" required></div><div class="field"><label>Phone</label><input name="phone" required></div><div class="field"><label>Delivery address</label><textarea name="address" rows="4" required></textarea></div><p class="muted">Payment method: Cash. Payment will remain pending until an admin records the cash received.</p><button class="btn btn-blue">PLACE ORDER</button></form></section></div><div><h2>Order summary</h2><?php foreach($cart as $item): ?><p><?= e($item['name']) ?> × <?= (int)$item['quantity'] ?> — <?= money($item['price']*$item['quantity']) ?></p><?php endforeach; ?><hr><h2>Total: <?= money($total) ?></h2></div></div></section>
 <?php include __DIR__ . '/includes/footer.php'; ?>

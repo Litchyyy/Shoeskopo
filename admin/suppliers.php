@@ -6,7 +6,23 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   $id=(int)($_POST['id']??0); $status=$_POST['status']??'Ordered';
   if(in_array($status,['Ordered','In Transit','Delivered','Cancelled'],true)){
    $pdo->beginTransaction(); try { $q=$pdo->prepare('SELECT * FROM purchase_orders WHERE id=? FOR UPDATE');$q->execute([$id]);$po=$q->fetch();
-    if($po && $po['status']!=='Delivered' && $status==='Delivered'){$items=$pdo->prepare('SELECT product_id,quantity FROM purchase_order_items WHERE purchase_order_id=?');$items->execute([$id]);$up=$pdo->prepare('UPDATE products SET stock=stock+? WHERE id=?');$log=$pdo->prepare("INSERT INTO inventory_logs(product_id,change_qty,reason,reference_type,reference_id) VALUES(?,?,'Supplier delivery','purchase_order',?)");foreach($items as $it){$up->execute([$it['quantity'],$it['product_id']]);$log->execute([$it['product_id'],$it['quantity'],$id]);}}
+    if($po && $po['status']!=='Delivered' && $status==='Delivered'){
+     $items=$pdo->prepare('SELECT poi.product_id,poi.quantity,p.name AS product_name FROM purchase_order_items poi JOIN products p ON p.id=poi.product_id WHERE poi.purchase_order_id=?');
+     $items->execute([$id]);
+     $up=$pdo->prepare('UPDATE products SET stock=stock+? WHERE id=?');
+     $log=$pdo->prepare("INSERT INTO inventory_logs(product_id,change_qty,reason,reference_type,reference_id) VALUES(?,?,'Supplier delivery','purchase_order',?)");
+     $expenseCheck=$pdo->prepare("SELECT COUNT(*) FROM expenses WHERE description LIKE ?");
+     $expenseCheck->execute(['%[Purchase Order #'.$id.']%']);
+     foreach($items as $it){$up->execute([$it['quantity'],$it['product_id']]);$log->execute([$it['product_id'],$it['quantity'],$id]);}
+     if((int)$expenseCheck->fetchColumn()===0){
+      $supplierNameStmt=$pdo->prepare('SELECT supplier_name FROM suppliers WHERE id=?');
+      $supplierNameStmt->execute([$po['supplier_id']]);
+      $supplierName=(string)$supplierNameStmt->fetchColumn();
+      $description='Supplier purchase from '.$supplierName.' [Purchase Order #'.$id.']';
+      $expense=$pdo->prepare("INSERT INTO expenses(expense_date,category,description,amount) VALUES(CURDATE(),'Supplies',?,?)");
+      $expense->execute([$description,(float)$po['total_cost']]);
+     }
+    }
     $delivered=$status==='Delivered'?', delivered_at=NOW()':'';$st=$pdo->prepare("UPDATE purchase_orders SET status=? $delivered WHERE id=?");$st->execute([$status,$id]);$pdo->commit();
    } catch(Throwable $e){$pdo->rollBack();$error='Could not update purchase order.';}
   }
