@@ -1,7 +1,44 @@
 <?php
-require_once __DIR__ . '/../config/db.php';require_once __DIR__ . '/../includes/functions.php';require_role(['employee','admin']);$pageTitle='Employee Dashboard';
-$orders=$pdo->query("SELECT id,full_name,total,status,created_at FROM orders ORDER BY created_at DESC LIMIT 20")->fetchAll();
+require_once __DIR__ . '/../config/db.php';
+require_once __DIR__ . '/../includes/functions.php';
+require_role(['employee', 'admin']);
+
+$pageTitle = 'Employee Dashboard';
+$productCount = (int)$pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();
+$lowStockCount = (int)$pdo->query('SELECT COUNT(*) FROM products WHERE stock <= 5')->fetchColumn();
+$todaySalesStmt = $pdo->prepare(
+    "SELECT COALESCE(SUM(total), 0)
+     FROM orders
+     WHERE status = 'Completed'
+       AND DATE(created_at) = CURDATE()"
+);
+$todaySalesStmt->execute();
+$todaySales = (float)$todaySalesStmt->fetchColumn();
+
 include __DIR__ . '/../includes/header.php';
 ?>
-<div class="admin-shell"><h1>EMPLOYEE DASHBOARD</h1><p>Welcome, <?= e(current_user()['username']) ?>.</p><nav class="admin-nav"><a href="index.php">Dashboard</a><a href="../admin/orders.php">Orders</a></nav><h2>Recent orders</h2><div class="table-wrap"><table class="data-table"><thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Status</th><th>Date</th></tr></thead><tbody><?php foreach($orders as $o): ?><tr><td>#<?= (int)$o['id'] ?></td><td><?= e($o['full_name']) ?></td><td><?= money($o['total']) ?></td><td><?= e($o['status']) ?></td><td><?= e($o['created_at']) ?></td></tr><?php endforeach; ?></tbody></table></div><p class="muted">Employee role is restricted; full admin CRUD remains admin-only.</p></div>
+<div class="admin-shell employee-dashboard">
+    <h1>EMPLOYEE DASHBOARD</h1>
+    <p>Welcome, <?= e(current_user()['username']) ?>.</p>
+
+    <nav class="admin-nav">
+        <a href="index.php">Dashboard</a>
+        <a href="manual_order.php">Manual Ordering / Cashier</a>
+        <a href="inventory.php">Inventory</a>
+    </nav>
+
+    <div class="stat-grid">
+        <div class="stat-card">Products<strong><?= $productCount ?></strong></div>
+        <div class="stat-card">Low-stock products<strong><?= $lowStockCount ?></strong></div>
+        <div class="stat-card">Completed sales today<strong><?= money($todaySales) ?></strong></div>
+    </div>
+
+    <section class="form-wrap employee-quick-actions" style="margin-top:20px;padding:18px">
+        <h2 style="margin-top:0">Quick Actions</h2>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+            <a class="btn" style="background:#e9a15b;color:#4a2d1b" href="manual_order.php">Manual Ordering / Cashier</a>
+            <a class="btn" href="inventory.php">Inventory</a>
+        </div>
+    </section>
+</div>
 <?php include __DIR__ . '/../includes/footer.php'; ?>
