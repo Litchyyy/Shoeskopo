@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 13, 2026 at 05:23 AM
+-- Generation Time: Oct 16, 2026 at 04:07 PM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -104,7 +104,9 @@ INSERT INTO `inventory_logs` (`id`, `product_id`, `change_qty`, `reason`, `refer
 (9, 1, -1, 'Employee manual sale', 'order', 4, '2026-10-13 02:09:47'),
 (10, 4, 5, 'Supplier delivery', 'purchase_order', 4, '2026-10-13 02:37:31'),
 (11, 2, 2, 'Supplier delivery', 'purchase_order', 5, '2026-10-13 02:38:05'),
-(12, 2, -1, 'Stock count adjustment', 'manual', NULL, '2026-10-13 02:38:31');
+(12, 2, -1, 'Stock count adjustment', 'manual', NULL, '2026-10-13 02:38:31'),
+(13, 4, -1, 'Customer order', 'order', 5, '2026-10-15 15:18:49'),
+(14, 5, -1, 'Customer order', 'order', 6, '2026-10-15 15:26:26');
 
 -- --------------------------------------------------------
 
@@ -131,7 +133,9 @@ INSERT INTO `orders` (`id`, `user_id`, `total`, `status`, `full_name`, `phone`, 
 (1, 2, 3499.00, 'Completed', 'Tsuya Posa', '0987654321', 'BCDA MEDYO HOMEOWNER', '2026-10-12 13:04:08'),
 (2, 2, 3499.00, 'Completed', 'tsuya', '123455667787', 'BCDA', '2026-10-12 15:00:32'),
 (3, 2, 3499.00, 'Completed', 'tsutsu', '2134214214214', 'BCDA HOME OWNERS', '2026-10-12 15:23:18'),
-(4, 3, 3499.00, 'Completed', 'Walk-in Customer', '', 'In-store purchase', '2026-10-13 02:09:47');
+(4, 3, 3499.00, 'Completed', 'Walk-in Customer', '', 'In-store purchase', '2026-10-13 02:09:47'),
+(5, 2, 500.00, 'Completed', 'Tsuya Posa', '0987654321', 'BCDA', '2026-10-15 15:18:49'),
+(6, 6, 150.00, 'Completed', 'Jesh Agustin', '0987654321', 'BCDA HOMEOWNERS', '2026-10-15 15:26:26');
 
 -- --------------------------------------------------------
 
@@ -157,7 +161,34 @@ INSERT INTO `order_items` (`id`, `order_id`, `product_id`, `product_name`, `size
 (1, 1, 1, 'Air Runner One', '8', 1, 3499.00),
 (2, 2, 1, 'Air Runner One', '8', 1, 3499.00),
 (3, 3, 1, 'Air Runner One', '7', 1, 3499.00),
-(4, 4, 1, 'Air Runner One', 'N/A', 1, 3499.00);
+(4, 4, 1, 'Air Runner One', 'N/A', 1, 3499.00),
+(5, 5, 4, 'Stone Age Shoes', '8', 1, 500.00),
+(6, 6, 5, '2x2 ng mga gods', '7', 1, 150.00);
+
+-- --------------------------------------------------------
+
+--
+-- Stand-in structure for view `order_transaction_details`
+-- (See below for the actual view)
+--
+CREATE TABLE `order_transaction_details` (
+`order_id` int(11)
+,`order_date` timestamp
+,`order_status` enum('Pending','Processing','Shipped','Completed','Cancelled')
+,`full_name` varchar(160)
+,`phone` varchar(40)
+,`address` text
+,`customer_email` varchar(190)
+,`product_id` int(11)
+,`product_name` varchar(180)
+,`size` varchar(20)
+,`quantity` int(11)
+,`unit_price` decimal(10,2)
+,`line_subtotal` decimal(20,2)
+,`grand_total` decimal(10,2)
+,`payment_method` varchar(30)
+,`payment_status` varchar(30)
+);
 
 -- --------------------------------------------------------
 
@@ -184,7 +215,9 @@ INSERT INTO `payments` (`id`, `order_id`, `payment_method`, `payment_status`, `c
 (1, 1, 'Cash', 'Paid', 3499.00, 0.00, '2026-10-12 23:34:08', '2026-10-12 14:41:53'),
 (2, 2, 'Cash', 'Paid', 3499.00, 0.00, '2026-10-12 23:34:13', '2026-10-12 15:00:32'),
 (3, 3, 'Cash', 'Paid', 3499.00, 0.00, '2026-10-12 23:34:17', '2026-10-12 15:23:18'),
-(7, 4, 'Cash', 'Paid', 15000.00, 11501.00, '2026-10-13 10:09:47', '2026-10-13 02:09:47');
+(7, 4, 'Cash', 'Paid', 15000.00, 11501.00, '2026-10-13 10:09:47', '2026-10-13 02:09:47'),
+(8, 5, 'Cash', 'Paid', 2000.00, 1500.00, '2026-10-15 23:22:41', '2026-10-15 15:18:49'),
+(10, 6, 'Cash', 'Paid', 500.00, 350.00, '2026-10-15 23:26:58', '2026-10-15 15:26:26');
 
 -- --------------------------------------------------------
 
@@ -229,7 +262,56 @@ INSERT INTO `products` (`id`, `category_id`, `name`, `description`, `price`, `im
 (1, 3, 'Air Runner One', 'Everyday running shoe with a lightweight feel.', 3499.00, 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=900', 'men', '7,8,9,10,11', 12, 0, '2026-10-12 10:47:28'),
 (2, 1, 'Court Classic', 'Classic court-inspired sneaker for everyday wear.', 2999.00, 'https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?w=900', 'women', '5,6,7,8,9', 19, 1, '2026-10-12 10:47:28'),
 (3, 1, 'Street Low Kids', 'Comfortable casual shoe for active days.', 1899.00, 'https://images.unsplash.com/photo-1552346154-21d32810aba3?w=900', 'kids', '1,2,3,4,5', 20, 1, '2026-10-12 10:47:28'),
-(4, 3, 'Stone Age Shoes', 'Bahay ng bato', 500.00, 'assets/images/products/product_29c37859bc9459885fbc6df3.jpg', 'men', '7,8,9,10', 20, 1, '2026-10-13 00:36:31');
+(4, 3, 'Stone Age Shoes', 'Bahay ng bato', 500.00, 'assets/images/products/product_29c37859bc9459885fbc6df3.jpg', 'men', '7,8,9,10', 19, 1, '2026-10-13 00:36:31'),
+(5, 3, '2x2 ng mga gods', '2x2', 150.00, 'assets/images/products/product_d1a0332d22fdc27e90138003.png', 'men', '7,8,9,10,11', 1, 0, '2026-10-15 15:08:38');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `product_images`
+--
+
+CREATE TABLE `product_images` (
+  `id` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `image_path` varchar(500) NOT NULL,
+  `sort_order` int(11) NOT NULL DEFAULT 0,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `product_images`
+--
+
+INSERT INTO `product_images` (`id`, `product_id`, `image_path`, `sort_order`, `created_at`) VALUES
+(1, 5, 'assets/images/products/product_gallery_caf630f4548e8c3093d3.jpg', 0, '2026-10-15 15:08:38'),
+(2, 5, 'assets/images/products/product_gallery_2d90923881e4958610e0.png', 1, '2026-10-15 15:08:38'),
+(3, 5, 'assets/images/products/product_gallery_a702e38b4c3e68954db9.jpg', 2, '2026-10-15 15:08:38');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `product_reviews`
+--
+
+CREATE TABLE `product_reviews` (
+  `id` int(11) NOT NULL,
+  `product_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  `order_id` int(11) NOT NULL,
+  `rating` tinyint(4) NOT NULL,
+  `review_text` text NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Dumping data for table `product_reviews`
+--
+
+INSERT INTO `product_reviews` (`id`, `product_id`, `user_id`, `order_id`, `rating`, `review_text`, `created_at`, `updated_at`) VALUES
+(1, 1, 2, 3, 5, 'Good products', '2026-10-15 15:20:12', '2026-10-15 15:20:21'),
+(2, 4, 2, 5, 1, '**** this product bro', '2026-10-15 15:23:24', '2026-10-15 15:23:24');
 
 -- --------------------------------------------------------
 
@@ -326,18 +408,30 @@ CREATE TABLE `users` (
   `full_name` varchar(160) DEFAULT NULL,
   `phone` varchar(40) DEFAULT NULL,
   `address` text DEFAULT NULL,
-  `avatar_path` varchar(255) DEFAULT NULL
+  `avatar_path` varchar(255) DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `role`, `created_at`, `full_name`, `phone`, `address`, `avatar_path`) VALUES
-(1, 'iya', 'iya@admin.com', '$2y$10$cqr4lMIVKDfwmxQqcGY0XOK2H345xeZbx2/5hxEMewcaqr8RYx3zq', 'admin', '2026-10-12 10:49:11', 'Jesh Agustin', '0956473821', 'BCDA HOME OWNERS', 'assets/images/profiles/user_1_29327590e5e4.png'),
-(2, 'Tsuya', 'tsutsu@joomla.com', '$2y$10$OvV6Dh2iUqqjuiDRVOWhQehqc2G.MwVZTjeq8twMNqzqlSJuwFvmK', 'customer', '2026-10-12 13:03:35', '', '', '', 'assets/images/profiles/user_2_d082bdf60a22.jpg'),
-(3, 'Strawberry', 'costelo@employee.com', '$2y$10$esb1TzDgcOfYFuQnB4EkGu5h0j.JH88IcED9c7ORr.r1LLIgmnoR6', 'employee', '2026-10-13 01:41:44', 'Paulo Costelo', '0987654321', 'TAGA JAN LANG WESTERNS', 'assets/images/profiles/user_3_155ad27035c0.png'),
-(4, 'Litch', 'litch@admin.com', '$2y$10$rETzF5diugWYwlYq8K3XMuqilNlb9Z2NqrM23lYjFNkWKj8b3.8zq', 'admin', '2026-10-13 02:40:05', 'John Michael', '0956473821', 'BCDA HOME OWNERS', NULL);
+INSERT INTO `users` (`id`, `username`, `email`, `password_hash`, `role`, `created_at`, `full_name`, `phone`, `address`, `avatar_path`, `is_active`) VALUES
+(1, 'iya', 'iya@admin.com', '$2y$10$cqr4lMIVKDfwmxQqcGY0XOK2H345xeZbx2/5hxEMewcaqr8RYx3zq', 'admin', '2026-10-12 10:49:11', 'Jesh Agustin', '0956473821', 'BCDA HOME OWNERS', 'assets/images/profiles/user_1_29327590e5e4.png', 1),
+(2, 'Tsuya', 'tsutsu@joomla.com', '$2y$10$OvV6Dh2iUqqjuiDRVOWhQehqc2G.MwVZTjeq8twMNqzqlSJuwFvmK', 'customer', '2026-10-12 13:03:35', '', '', '', 'assets/images/profiles/user_2_d082bdf60a22.jpg', 1),
+(3, 'Strawberry', 'costelo@employee.com', '$2y$10$esb1TzDgcOfYFuQnB4EkGu5h0j.JH88IcED9c7ORr.r1LLIgmnoR6', 'customer', '2026-10-13 01:41:44', 'Paulo Costelo', '0987654321', 'TAGA JAN LANG WESTERNS', 'assets/images/profiles/user_3_155ad27035c0.png', 1),
+(4, 'Litch', 'litch@admin.com', '$2y$10$rETzF5diugWYwlYq8K3XMuqilNlb9Z2NqrM23lYjFNkWKj8b3.8zq', 'admin', '2026-10-13 02:40:05', 'John Michael', '0956473821', 'BCDA HOME OWNERS', NULL, 1),
+(5, 'Shawn sipper', 'shawn@admin.com', '$2y$10$BqK7RWpKKKBx/XA9nqrrgu7ZE4Kt.u/jp2TWjBss3ECrIa9rMVEFm', 'customer', '2026-10-15 15:15:41', NULL, NULL, NULL, NULL, 1),
+(6, 'IyaMALOPIT', 'agustin.jeshaiah@gmail.com', '$2y$10$Std7YZOSlAGmcG.5bAROk.kF10HssOikYomZAiweDAethQRPlsGPW', 'customer', '2026-10-15 15:25:48', NULL, NULL, NULL, 'assets/images/profiles/register_5bf725fd1cf0e319f644.png', 1);
+
+-- --------------------------------------------------------
+
+--
+-- Structure for view `order_transaction_details`
+--
+DROP TABLE IF EXISTS `order_transaction_details`;
+
+CREATE ALGORITHM=UNDEFINED SQL SECURITY INVOKER VIEW `order_transaction_details`  AS SELECT `o`.`id` AS `order_id`, `o`.`created_at` AS `order_date`, `o`.`status` AS `order_status`, `o`.`full_name` AS `full_name`, `o`.`phone` AS `phone`, `o`.`address` AS `address`, `u`.`email` AS `customer_email`, `oi`.`product_id` AS `product_id`, `oi`.`product_name` AS `product_name`, `oi`.`size` AS `size`, `oi`.`quantity` AS `quantity`, `oi`.`unit_price` AS `unit_price`, `oi`.`quantity`* `oi`.`unit_price` AS `line_subtotal`, `o`.`total` AS `grand_total`, `p`.`payment_method` AS `payment_method`, `p`.`payment_status` AS `payment_status` FROM (((`orders` `o` join `users` `u` on(`u`.`id` = `o`.`user_id`)) join `order_items` `oi` on(`oi`.`order_id` = `o`.`id`)) left join `payments` `p` on(`p`.`order_id` = `o`.`id`)) ;
 
 --
 -- Indexes for dumped tables
@@ -401,6 +495,22 @@ ALTER TABLE `products`
   ADD KEY `fk_products_category` (`category_id`);
 
 --
+-- Indexes for table `product_images`
+--
+ALTER TABLE `product_images`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `fk_product_images_product` (`product_id`);
+
+--
+-- Indexes for table `product_reviews`
+--
+ALTER TABLE `product_reviews`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uq_review_buyer_product_order` (`user_id`,`product_id`,`order_id`),
+  ADD KEY `fk_reviews_product` (`product_id`),
+  ADD KEY `fk_reviews_order` (`order_id`);
+
+--
 -- Indexes for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
@@ -448,25 +558,25 @@ ALTER TABLE `expenses`
 -- AUTO_INCREMENT for table `inventory_logs`
 --
 ALTER TABLE `inventory_logs`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=13;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=15;
 
 --
 -- AUTO_INCREMENT for table `orders`
 --
 ALTER TABLE `orders`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `order_items`
 --
 ALTER TABLE `order_items`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `payments`
 --
 ALTER TABLE `payments`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=12;
 
 --
 -- AUTO_INCREMENT for table `price_logs`
@@ -478,7 +588,19 @@ ALTER TABLE `price_logs`
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+
+--
+-- AUTO_INCREMENT for table `product_images`
+--
+ALTER TABLE `product_images`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+
+--
+-- AUTO_INCREMENT for table `product_reviews`
+--
+ALTER TABLE `product_reviews`
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT for table `purchase_orders`
@@ -502,7 +624,7 @@ ALTER TABLE `suppliers`
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int(11) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- Constraints for dumped tables
@@ -547,6 +669,20 @@ ALTER TABLE `products`
   ADD CONSTRAINT `fk_products_category` FOREIGN KEY (`category_id`) REFERENCES `categories` (`id`) ON DELETE SET NULL;
 
 --
+-- Constraints for table `product_images`
+--
+ALTER TABLE `product_images`
+  ADD CONSTRAINT `fk_product_images_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `product_reviews`
+--
+ALTER TABLE `product_reviews`
+  ADD CONSTRAINT `fk_reviews_order` FOREIGN KEY (`order_id`) REFERENCES `orders` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_reviews_product` FOREIGN KEY (`product_id`) REFERENCES `products` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `fk_reviews_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
+
+--
 -- Constraints for table `purchase_orders`
 --
 ALTER TABLE `purchase_orders`
@@ -563,3 +699,15 @@ COMMIT;
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
 /*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
 /*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
+
+-- Review photos and videos (added for customer review media support)
+CREATE TABLE IF NOT EXISTS `product_review_media` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `review_id` int(11) NOT NULL,
+  `media_path` varchar(500) NOT NULL,
+  `media_type` enum('image','video') NOT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  KEY `idx_review_media_review_id` (`review_id`),
+  CONSTRAINT `fk_review_media_review` FOREIGN KEY (`review_id`) REFERENCES `product_reviews` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

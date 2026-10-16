@@ -38,6 +38,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        if ($action === 'toggle_active') {
+            if ($id < 1 || $id === $currentUserId) throw new RuntimeException('You cannot deactivate your own signed-in account.');
+            $st=$pdo->prepare('UPDATE users SET is_active=IF(is_active=1,0,1) WHERE id=?'); $st->execute([$id]);
+            header('Location: users.php?message=active'); exit;
+        }
+
         if ($action === 'password') {
             $password = $_POST['new_password'] ?? '';
             if ($id < 1 || strlen($password) < 8) {
@@ -101,7 +107,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $search = trim($_GET['q'] ?? '');
 $stmt = $pdo->prepare(
-    "SELECT id, username, email, role, created_at, full_name, phone, address
+    "SELECT id, username, email, role, created_at, full_name, phone, address, is_active
      FROM users
      WHERE username LIKE ?
         OR email LIKE ?
@@ -141,11 +147,7 @@ include __DIR__ . '/../includes/header.php';
 ?>
 <div class="admin-shell">
 <h1>USER MANAGEMENT</h1>
-<nav class="admin-nav">
-    <a href="index.php">Dashboard</a><a href="orders.php">Sale Management</a>
-    <a href="products.php">Products</a><a href="categories.php">Categories</a>
-    <a href="suppliers.php">Suppliers</a><a href="inventory.php">Inventory</a><a href="reports.php">Reports &amp; Expenses</a>
-</nav>
+<?= admin_navigation('users.php') ?>
 <?php if ($error): ?><div class="form-error"><?= e($error) ?></div><?php endif; ?>
 <?php if (isset($_GET['message'])): ?><div class="form-success">User action completed successfully (<?= e($_GET['message']) ?>).</div><?php endif; ?>
 
@@ -156,12 +158,12 @@ include __DIR__ . '/../includes/header.php';
 
 <h2><?= $edit ? 'Edit user' : 'Add user' ?></h2>
 <section class="form-wrap" style="margin:20px 0;max-width:760px">
-<form method="post">
+<form method="post" novalidate>
     <input type="hidden" name="action" value="<?= $edit ? 'update' : 'create' ?>">
     <input type="hidden" name="id" value="<?= (int)($edit['id'] ?? 0) ?>">
     <div class="field"><label>Full name</label><input name="full_name" value="<?= e($edit['full_name'] ?? '') ?>"></div>
     <div class="field"><label>Username</label><input name="username" required maxlength="80" value="<?= e($edit['username'] ?? '') ?>"></div>
-    <div class="field"><label>Email</label><input type="email" name="email" required value="<?= e($edit['email'] ?? '') ?>"></div>
+    <div class="field"><label>Email</label><input type="text" name="email" value="<?= e($edit['email'] ?? '') ?>"></div>
     <div class="field"><label>Phone</label><input name="phone" value="<?= e($edit['phone'] ?? '') ?>"></div>
     <div class="field"><label>Address</label><textarea name="address"><?= e($edit['address'] ?? '') ?></textarea></div>
     <div class="field"><label>Role</label><select name="role"><?php foreach (['customer', 'employee', 'admin'] as $role): ?><option value="<?= e($role) ?>" <?= ($edit['role'] ?? 'customer') === $role ? 'selected' : '' ?>><?= ucfirst($role) ?></option><?php endforeach; ?></select></div>
@@ -180,11 +182,11 @@ include __DIR__ . '/../includes/header.php';
 
 <h2>User records</h2>
 <div class="table-wrap"><table class="data-table">
-<thead><tr><th>Name / Username</th><th>Email</th><th>Phone</th><th>Created</th><th>Role</th><th>Actions</th></tr></thead><tbody>
+<thead><tr><th>Name / Username</th><th>Email</th><th>Phone</th><th>Created</th><th>Role</th><th>Account</th><th>Actions</th></tr></thead><tbody>
 <?php foreach ($users as $user): ?>
 <tr>
     <td><?= e($user['full_name'] ?: $user['username']) ?><br><small><?= e($user['username']) ?></small></td>
-    <td><?= e($user['email']) ?></td><td><?= e($user['phone'] ?? '') ?></td><td><?= e($user['created_at']) ?></td><td><?= e($user['role']) ?></td>
+    <td><?= e($user['email']) ?></td><td><?= e($user['phone'] ?? '') ?></td><td><?= e($user['created_at']) ?></td><td><?= e($user['role']) ?></td><td><?= (int)$user['is_active']===1 ? 'Active' : 'Inactive' ?></td>
     <td>
         <a href="users.php?edit=<?= (int)$user['id'] ?>">Edit</a> |
         <a href="users.php?history=<?= (int)$user['id'] ?>">History</a>
@@ -196,6 +198,7 @@ include __DIR__ . '/../includes/header.php';
             </form>
         </details>
         <?php if ((int)$user['id'] !== $currentUserId): ?>
+        <form method="post" style="margin-top:8px"><input type="hidden" name="action" value="toggle_active"><input type="hidden" name="id" value="<?= (int)$user['id'] ?>"><button class="btn" type="submit"><?= (int)$user['is_active']===1 ? 'Deactivate user' : 'Activate user' ?></button></form>
         <form method="post" onsubmit="return confirm('Delete this user and their order history?')" style="margin-top:8px">
             <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$user['id'] ?>">
             <button class="btn" type="submit">Delete</button>
@@ -204,7 +207,7 @@ include __DIR__ . '/../includes/header.php';
     </td>
 </tr>
 <?php endforeach; ?>
-<?php if (!$users): ?><tr><td colspan="6">No users found.</td></tr><?php endif; ?>
+<?php if (!$users): ?><tr><td colspan="7">No users found.</td></tr><?php endif; ?>
 </tbody></table></div>
 </div>
 <?php include __DIR__ . '/../includes/footer.php'; ?>

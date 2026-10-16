@@ -1,0 +1,33 @@
+SHOESKOPO MP1 THROUGH TERM TEST SETUP
+
+1. Back up your current Shoeskopo folder and database first.
+2. Copy the updated Shoeskopo folder into C:\xampp\htdocs\Shoeskopo (or your XAMPP htdocs path).
+3. In phpMyAdmin, select shoeskopo_db, choose Import, and import shoeskopo_project_migration.sql. Import the original shoeskopo_db.sql first only if setting up a fresh database.
+4. Do not import shoeskopo_project_migration.sql twice; it adds is_active and creates the gallery/review tables and view.
+5. Configure Mailtrap: open config/mail.php, enter your Mailtrap SMTP username/password, and set enabled to true. Until this is configured, email sending is intentionally disabled. The default Mailtrap Email Testing sandbox captures messages in your Mailtrap inbox; it does NOT deliver them to a real customer Gmail inbox. To deliver real customer emails, use Mailtrap Email Sending with a verified sender/domain and its SMTP credentials, then update host/port/username/password/from_email in config/mail.php. The customer account must contain a valid email address. The admin Sale Management page will show whether sending succeeded.
+6. In PHP settings, confirm file uploads are enabled and upload_max_filesize/post_max_size are large enough for several images.
+7. Open http://localhost/Shoeskopo and test using an admin account.
+
+IMPLEMENTED IN THIS UPDATE
+- Multiple product images with product gallery storage/display, while keeping the existing main image upload.
+- Optional registration profile photo, existing profile photo update, and account active/inactive status enforcement.
+- Admin user activate/deactivate control; existing role editing remains available.
+- Buyer review workflow limited to customers with Shipped/Completed orders, review display/edit, and basic regex foul-word masking.
+- Server-side login/registration/product/user validation with novalidate on relevant forms.
+- Order status change notification via Mailtrap SMTP with item lines, subtotals, grand total, and PDF receipt attachment.
+- SQL VIEW order_transaction_details for order line/transaction reporting.
+- Existing prepared-statement checkout and order-management flows retained.
+
+IMPORTANT
+- Email uses Mailtrap sandbox credentials, so messages normally go to your Mailtrap inbox, not to real customers.
+- This environment cannot connect to your local XAMPP database or Mailtrap account. Import the migration and perform browser testing locally.
+- The foul-word list is a starter list for classroom demonstration and can be expanded.
+- Database normalization: existing core entities are separated into users, orders, order_items, products, categories and payments; inspect the final schema with your instructor if a formal 2NF explanation is required.
+
+ADMIN MENU AND PRODUCT GALLERY
+- All admin pages now use the same fixed menu items in the same order. The current page is highlighted and menu labels are not editable controls.
+- Product details show one large photo at a time with previous/next arrow buttons; keyboard left/right arrows also work when the gallery is focused.
+
+DATABASE NORMALIZATION / VIEW
+- The existing schema separates customers (users), orders, order lines (order_items), products, categories, payments, suppliers, and purchase-order lines. Primary keys are single-column IDs, avoiding partial-key dependencies and meeting the basic 2NF principle. Product name and unit price in order_items are intentional transaction snapshots, so historical receipts remain correct if a product is renamed or repriced.
+- order_transaction_details is a MySQL VIEW joining orders, users, order_items and payments. Import the SQL dump on a fresh database or the migration file for an existing database.

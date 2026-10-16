@@ -150,11 +150,7 @@ include __DIR__ . '/../includes/header.php';
 ?>
 <div class="admin-shell">
 <h1>REPORTS &amp; EXPENSES</h1>
-<nav class="admin-nav">
-    <a href="index.php">Dashboard</a><a href="orders.php">Sale Management</a>
-    <a href="products.php">Products</a><a href="categories.php">Categories</a>
-    <a href="suppliers.php">Suppliers</a><a href="inventory.php">Inventory</a><a href="users.php">Users</a>
-</nav>
+<?= admin_navigation('reports.php') ?>
 <div class="report-toolbar report-controls">
     <form method="get" class="inline-form">
         <label for="report-type"><strong>Report type</strong></label>

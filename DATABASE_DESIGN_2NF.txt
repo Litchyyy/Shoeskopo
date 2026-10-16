@@ -1,0 +1,41 @@
+SHOESKOPO DATABASE DESIGN NOTES (1NF / 2NF)
+
+The project uses MySQL tables with primary keys and foreign keys. The migration file
+shoeskopo_project_migration.sql creates product_sizes and the order_transaction_details view.
+
+Normalization updates:
+- product_sizes stores one available size per row instead of relying only on a comma-separated list.
+- product_images stores each additional product photo in its own row.
+- order_items stores one purchased product/size line per row and belongs to one order.
+- orders stores transaction-level information; payments stores payment information separately.
+- order_transaction_details joins orders, users, order_items and payments for reporting.
+- The product name and unit price in order_items are intentionally saved as a snapshot so an old
+  receipt remains accurate if the product name or price changes later.
+
+2NF check:
+All tables use a single-column primary key (or a single-column surrogate id), so no non-key
+column depends on only part of a composite primary key. Foreign keys connect related records.
+The normalized product_sizes table has a unique (product_id, size_label) constraint to prevent
+repeated size options for a product.
+
+Important:
+Import shoeskopo_project_migration.sql after importing shoeskopo_db.sql. Existing product sizes
+are still supported through the legacy products.sizes field if the migration has not been run,
+but the normalized product_sizes table is used once available. Do not delete products.sizes until
+all older code and records have been migrated and verified.
+
+MAILTRAP EMAIL SENDING SETUP
+Set these environment variables in the PHP environment before enabling emails:
+SHOESKOPO_SMTP_HOST=live.smtp.mailtrap.io
+SHOESKOPO_SMTP_PORT=587
+SHOESKOPO_SMTP_USERNAME=your Mailtrap SMTP username
+SHOESKOPO_SMTP_PASSWORD=your Mailtrap SMTP password
+SHOESKOPO_MAIL_FROM=an email address/domain verified in Mailtrap
+SHOESKOPO_MAIL_FROM_NAME=Shoeskopo
+SHOESKOPO_MAIL_ENABLED=true
+
+Use Mailtrap Email Sending (not only the Email Testing sandbox) to deliver to real customer
+inboxes. The recipient address is read from the customer's account and validated. Mail is sent
+when an administrator changes the order status; the email includes item lines, subtotal, grand
+total and a PDF receipt. The sender address/domain must be verified with Mailtrap. Never put
+real SMTP credentials into a public repository.
