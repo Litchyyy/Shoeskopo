@@ -1,13 +1,14 @@
 <?php
-// Mailtrap Email Sending SMTP settings.
-// Set these environment variables in your PHP/server environment.
-// Use a verified sender address/domain in your Mailtrap account.
+// Mailtrap Email Sandbox SMTP configuration.
+// Set MAILTRAP_USERNAME and MAILTRAP_PASSWORD in your environment, or enter fresh
+// regenerated credentials below locally. Do not commit credentials to Git.
 return [
-    'host' => getenv('SHOESKOPO_SMTP_HOST') ?: 'live.smtp.mailtrap.io',
-    'port' => (int)(getenv('SHOESKOPO_SMTP_PORT') ?: 587),
-    'username' => getenv('SHOESKOPO_SMTP_USERNAME') ?: '',
-    'password' => getenv('SHOESKOPO_SMTP_PASSWORD') ?: '',
-    'from_email' => getenv('SHOESKOPO_MAIL_FROM') ?: '',
-    'from_name' => getenv('SHOESKOPO_MAIL_FROM_NAME') ?: 'Shoeskopo',
-    'enabled' => filter_var(getenv('SHOESKOPO_MAIL_ENABLED') ?: 'false', FILTER_VALIDATE_BOOLEAN),
+    'enabled' => true,
+    'host' => 'smtp.gmail.com',
+    'port' => 587,
+    'username' => 'shoeskopoproject@gmail.com',
+    'password' => 'kjrm laoj taiu bpvd',
+    'encryption' => 'tls',
+    'from_email' => 'shoeskopoproject@gmail.com',
+    'from_name' => 'Shoeskopo',
 ];

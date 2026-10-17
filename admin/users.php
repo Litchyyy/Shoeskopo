@@ -188,7 +188,7 @@ include __DIR__ . '/../includes/header.php';
     <td><?= e($user['full_name'] ?: $user['username']) ?><br><small><?= e($user['username']) ?></small></td>
     <td><?= e($user['email']) ?></td><td><?= e($user['phone'] ?? '') ?></td><td><?= e($user['created_at']) ?></td><td><?= e($user['role']) ?></td><td><?= (int)$user['is_active']===1 ? 'Active' : 'Inactive' ?></td>
     <td>
-        <a href="users.php?edit=<?= (int)$user['id'] ?>">Edit</a> |
+        <a href="users.php?edit=<?= (int)$user['id'] ?>" class="icon-button" aria-label="Edit" title="Edit">✎</a> |
         <a href="users.php?history=<?= (int)$user['id'] ?>">History</a>
         <details style="margin-top:8px"><summary>Change password</summary>
             <form method="post" style="margin-top:8px">

@@ -18,6 +18,10 @@ if (!$order) {
     http_response_code(404);
     exit('Receipt not found or access denied.');
 }
+if (($order['payment_status'] ?? '') !== 'Paid') {
+    http_response_code(402);
+    exit('Payment is required before a receipt can be issued. Please complete payment at checkout.');
+}
 $stmt = $pdo->prepare('SELECT product_name, size, quantity, unit_price FROM order_items WHERE order_id = ?');
 $stmt->execute([$orderId]);
 $items = $stmt->fetchAll();
@@ -49,7 +53,12 @@ function receipt_money($v): string { return '₱' . number_format((float)$v, 2);
   </tbody></table>
   <div class="totals"><p><span>Subtotal</span><strong><?= receipt_money($order['total']) ?></strong></p><p class="grand"><span>Total</span><span><?= receipt_money($order['total']) ?></span></p>
   <?php if (($order['payment_status'] ?? '') === 'Paid'): ?><p><span>Cash received</span><strong><?= receipt_money($order['cash_received']) ?></strong></p><p><span>Change</span><strong><?= receipt_money($order['change_due']) ?></strong></p><?php else: ?><p><span>Amount due</span><strong><?= receipt_money($order['total']) ?></strong></p><?php endif; ?></div>
-  <div class="note"><strong>Thank you for shopping at Shoeskopo!</strong><p>This is your order receipt.</p></div>
+  <div class="note"><strong>Thank you for shopping at Shoeskopo!</strong><p>This is your order receipt.</p>
+  <?php if (!empty($_SESSION['order_confirmation_notice'])): ?>
+    <p><?= receipt_escape($_SESSION['order_confirmation_notice']) ?></p>
+    <?php unset($_SESSION['order_confirmation_notice']); ?>
+  <?php endif; ?>
+  </div>
 </main>
-<div class="actions"><button onclick="window.print()">Print receipt</button> <a href="<?= (current_user()['role'] ?? '') === 'admin' ? 'admin/orders.php' : 'orders.php' ?>">Back</a></div>
+<div class="actions"><button onclick="window.print()">Print receipt</button> <a href="<?= (current_user()['role'] ?? '') === 'admin' ? 'admin/orders.php' : ((current_user()['role'] ?? '') === 'employee' ? 'employee/index.php' : 'index.php') ?>">Back</a></div>
 </body></html>

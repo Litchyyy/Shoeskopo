@@ -10,6 +10,9 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
   if ($user && (int)$user['is_active'] === 1 && password_verify($password,$user['password_hash'])) {
     session_regenerate_id(true);
     $_SESSION['user']=['id'=>(int)$user['id'],'username'=>$user['username'],'email'=>$user['email'],'role'=>$user['role']];
+    // Replace any guest/previous-account cart with this customer's own saved cart.
+    if ($user['role'] === 'customer') shoeskopo_load_cart($pdo);
+    else unset($_SESSION['cart']);
     if ($user['role']==='admin') header('Location: admin/index.php');
     elseif ($user['role']==='employee') header('Location: employee/index.php');
     else header('Location: index.php');

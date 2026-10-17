@@ -291,7 +291,7 @@ foreach ($stmt as $row):
 <tr>
     <td><?= e($expense['expense_date']) ?></td><td><?= e($expense['category']) ?></td>
     <td><?= e($expense['description']) ?></td><td><?= money($expense['amount']) ?></td>
-    <td><a href="reports.php?type=expenses&amp;period=<?= e($period) ?>&amp;edit=<?= (int)$expense['id'] ?>">Edit</a>
+    <td><a href="reports.php?type=expenses&amp;period=<?= e($period) ?>&amp;edit=<?= (int)$expense['id'] ?>" class="icon-button" aria-label="Edit" title="Edit">✎</a>
         <form method="post" class="inline-form" onsubmit="return confirm('Delete this expense?')" style="display:inline">
             <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$expense['id'] ?>">
             <input type="hidden" name="period" value="<?= e($period) ?>">

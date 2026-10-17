@@ -50,10 +50,11 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && ($_POST['action']??'')!=='review') {
   if ($sizes && !in_array($size,$sizes,true)) $error='Please choose an available size.';
   elseif ((int)$product['stock'] < $qty) $error='Not enough stock available.';
   else {
-    $_SESSION['cart'] = $_SESSION['cart'] ?? [];
+    $cart = shoeskopo_load_cart($pdo);
     $key=$product['id'].'_'.$size;
-    if (!isset($_SESSION['cart'][$key])) $_SESSION['cart'][$key]=['product_id'=>(int)$product['id'],'name'=>$product['name'],'price'=>(float)$product['price'],'image_url'=>$product['image_url'],'size'=>$size,'quantity'=>0];
-    $_SESSION['cart'][$key]['quantity'] += $qty;
+    if (!isset($cart[$key])) $cart[$key]=['product_id'=>(int)$product['id'],'name'=>$product['name'],'price'=>(float)$product['price'],'image_url'=>$product['image_url'],'size'=>$size,'quantity'=>0];
+    $cart[$key]['quantity'] += $qty;
+    shoeskopo_save_cart($pdo, $cart);
     header('Location: cart.php?added=1'); exit;
   }
 }

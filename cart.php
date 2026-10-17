@@ -2,17 +2,18 @@
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 $pageTitle='Shopping Cart';
-$_SESSION['cart']=$_SESSION['cart'] ?? [];
+$cart=shoeskopo_load_cart($pdo);
 if ($_SERVER['REQUEST_METHOD']==='POST') {
-  if (isset($_POST['remove'])) unset($_SESSION['cart'][$_POST['remove']]);
+  if (isset($_POST['remove'])) unset($cart[$_POST['remove']]);
   if (isset($_POST['update']) && is_array($_POST['qty'] ?? null)) {
-    foreach ($_POST['qty'] as $key=>$qty) if (isset($_SESSION['cart'][$key])) {
-      $qty=max(1,min(20,(int)$qty)); $_SESSION['cart'][$key]['quantity']=$qty;
+    foreach ($_POST['qty'] as $key=>$qty) if (isset($cart[$key])) {
+      $qty=max(1,min(20,(int)$qty)); $cart[$key]['quantity']=$qty;
     }
   }
+  shoeskopo_save_cart($pdo, $cart);
   header('Location: cart.php'); exit;
 }
-$cart=$_SESSION['cart']; $total=0; foreach($cart as $item) $total += $item['price']*$item['quantity'];
+$cart=shoeskopo_load_cart($pdo); $total=0; foreach($cart as $item) $total += $item['price']*$item['quantity'];
 include __DIR__ . '/includes/header.php';
 ?>
 <section class="section"><h1>YOUR CART</h1>

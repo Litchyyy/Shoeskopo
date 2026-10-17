@@ -64,26 +64,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->commit();
             header('Location: orders.php?updated=1');
             exit;
-        } elseif ($action === 'payment') {
-            $cash = (float)($_POST['cash_received'] ?? 0);
-            $stmt = $pdo->prepare('SELECT total FROM orders WHERE id = ?');
-            $stmt->execute([$id]);
-            $total = $stmt->fetchColumn();
-
-            if ($total === false) {
-                throw new RuntimeException('Order not found.');
-            }
-            if ($cash < (float)$total) {
-                throw new RuntimeException('Cash received must be at least the order total.');
-            }
-
-            $stmt = $pdo->prepare(
-                "INSERT INTO payments (order_id, payment_method, payment_status, cash_received, change_due, paid_at)
-                 VALUES (?, 'Cash', 'Paid', ?, ?, NOW())
-                 ON DUPLICATE KEY UPDATE payment_method='Cash', payment_status='Paid',
-                 cash_received=VALUES(cash_received), change_due=VALUES(change_due), paid_at=NOW()"
-            );
-            $stmt->execute([$id, $cash, $cash - (float)$total]);
         } elseif ($action === 'status') {
             $status = $_POST['status'] ?? '';
             if (!in_array($status, $statuses, true)) {
@@ -139,21 +119,18 @@ include __DIR__ . '/../includes/header.php';
 <div class="stat-grid"><div class="stat-card">Completed orders<strong><?= $completedCount ?></strong></div><div class="stat-card">Completed sales (gross)<strong><?= money($completedTotal) ?></strong></div><div class="stat-card">Total expenses<strong><?= money($allExpenses) ?></strong></div><div class="stat-card">Sales after expenses<strong><?= money($netCompletedSales) ?></strong></div></div>
 <p class="muted">All orders, including pending and completed sales, are shown below. Update an order's status here. Completed orders are included in the completed sales totals above automatically.</p>
 <?php if ($error): ?><div class="form-error"><?= e($error) ?></div><?php endif; ?>
-<?php if (isset($_GET['updated'])): ?><div class="form-success">Sale updated successfully.</div><?php endif; ?><?php if (!empty($_SESSION['order_mail_notice'])): ?><div class="<?= str_contains($_SESSION['order_mail_notice'], 'not sent') ? 'form-error' : 'form-success' ?>"><?= e($_SESSION['order_mail_notice']) ?></div><?php unset($_SESSION['order_mail_notice']); endif; ?>
-<div class="table-wrap"><table class="data-table"><thead><tr><th>Order</th><th>Customer</th><th>Date</th><th>Total</th><th>Payment</th><th>Receipt / Cash</th><th>Status</th></tr></thead><tbody>
+<?php if (isset($_GET['updated'])): ?><div class="form-success">Sale updated successfully.</div><?php endif; ?><?php if (!empty($_SESSION['order_mail_notice'])): ?><div class="<?= (str_contains($_SESSION['order_mail_notice'], 'failed') || str_contains($_SESSION['order_mail_notice'], 'not sent')) ? 'form-error' : 'form-success' ?>"><?= e($_SESSION['order_mail_notice']) ?></div><?php unset($_SESSION['order_mail_notice']); endif; ?>
+<div class="table-wrap"><table class="data-table"><thead><tr><th>Order</th><th>Customer</th><th>Date</th><th>Total</th><th>Payment</th><th>Receipt</th><th>Status</th></tr></thead><tbody>
 <?php foreach ($orders as $o): ?>
 <tr>
 <td>#<?= (int)$o['id'] ?></td><td><?= e($o['full_name'] ?? '') ?><br><small><?= e($o['email']) ?></small></td><td><?= e($o['created_at']) ?></td><td><?= money($o['total']) ?></td><td><?= e($o['payment_status'] ?? 'Pending') ?></td>
-<td><a href="../receipt.php?order=<?= (int)$o['id'] ?>" target="_blank">Receipt</a>
-<?php if (($o['payment_status'] ?? 'Pending') !== 'Paid'): ?>
-<form method="post" class="inline-form"><input type="hidden" name="action" value="payment"><input type="hidden" name="id" value="<?= (int)$o['id'] ?>"><input type="number" name="cash_received" min="<?= e((string)$o['total']) ?>" step="0.01" placeholder="Cash received" required style="width:130px"><button type="submit" class="btn" style="padding:8px">Record cash</button></form>
-<?php else: ?><div><?= money($o['cash_received']) ?> received<br>Change <?= money($o['change_due']) ?></div><?php endif; ?></td>
+<td><?php if (($o['payment_status'] ?? 'Pending') === 'Paid'): ?><a href="../receipt.php?order=<?= (int)$o['id'] ?>" target="_blank">View receipt</a><div class="muted"><?= money($o['cash_received']) ?> paid<br>Change <?= money($o['change_due']) ?></div><?php else: ?><span class="muted">Payment required</span><?php endif; ?></td>
 <td>
 <form method="post" class="inline-form">
     <input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="<?= (int)$o['id'] ?>">
     <input type="number" name="total" min="0.01" step="0.01" value="<?= e((string)$o['total']) ?>" required style="width:110px">
     <select name="status"><?php foreach ($statuses as $s): ?><option value="<?= e($s) ?>" <?= $o['status'] === $s ? 'selected' : '' ?>><?= e($s) ?></option><?php endforeach; ?></select>
-    <button type="submit" class="btn" style="padding:8px">Save</button>
+    <button type="submit" class="btn icon-button" style="padding:8px" aria-label="Save changes" title="Save changes">✎</button>
 </form>
 <form method="post" onsubmit="return confirm('Delete this sale? Product quantities will be returned to stock.')" style="margin-top:6px">
     <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$o['id'] ?>">

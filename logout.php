@@ -1,9 +1,11 @@
 <?php
+require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
-$_SESSION = [];
-if (ini_get('session.use_cookies')) {
-  $params = session_get_cookie_params();
-  setcookie(session_name(), '', time()-42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
+// Persist the signed-in customer's current cart before removing authentication.
+if (current_user() && (current_user()['role'] ?? '') === 'customer') {
+    shoeskopo_save_cart($pdo, $_SESSION['cart'] ?? shoeskopo_load_cart($pdo));
 }
-session_destroy();
-header('Location: index.php'); exit;
+unset($_SESSION['user'], $_SESSION['order_confirmation_notice'], $_SESSION['flash_error']);
+session_regenerate_id(true);
+header('Location: index.php');
+exit;
