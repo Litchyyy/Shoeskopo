@@ -8,7 +8,7 @@ if (!$product) { http_response_code(404); $pageTitle='Product not found'; includ
 $pageTitle=$product['name']; $error=''; $reviewMessage='';
 $reviewFilter = in_array($_GET['review_filter'] ?? 'all', ['all','media','text'], true) ? ($_GET['review_filter'] ?? 'all') : 'all';
 $normalizedSizes=[]; try { $sizeStmt=$pdo->prepare('SELECT size_label FROM product_sizes WHERE product_id=? ORDER BY id'); $sizeStmt->execute([(int)$product['id']]); $normalizedSizes=$sizeStmt->fetchAll(PDO::FETCH_COLUMN); } catch(Throwable $ignored) {}
-if (!$normalizedSizes) $normalizedSizes=array_values(array_filter(array_map('trim', explode(',', $product['sizes'] ?? ''))));
+
 $gallery=[]; try { $g=$pdo->prepare('SELECT image_path FROM product_images WHERE product_id=? ORDER BY sort_order,id'); $g->execute([$product['id']]); $gallery=$g->fetchAll(PDO::FETCH_COLUMN); } catch(Throwable $e) {}
 $reviews=[]; $reviewEligible=false; $reviewOrderId=0;
 if(current_user()) { $elig=$pdo->prepare("SELECT o.id FROM orders o JOIN order_items oi ON oi.order_id=o.id WHERE o.user_id=? AND oi.product_id=? AND o.status IN ('Completed','Shipped') ORDER BY o.created_at DESC"); $elig->execute([current_user()['id'],$product['id']]); $reviewOrderId=(int)($elig->fetchColumn()?:0); $reviewEligible=$reviewOrderId>0; }

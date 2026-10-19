@@ -42,16 +42,17 @@ function receipt_money($v): string { return '₱' . number_format((float)$v, 2);
 <main class="receipt">
   <div class="brand"><h1>SHOESKOPO</h1><p>SALES RECEIPT</p><p>Thank you for your purchase!</p></div>
   <div class="meta">
+    <p><strong>Receipt No.:</strong> #<?= (int)$order['id'] ?></p>
     <p><strong>Date:</strong> <?= receipt_escape($order['created_at']) ?></p>
     <p><strong>Customer:</strong> <?= receipt_escape($order['full_name'] ?? current_user()['username'] ?? 'Customer') ?></p>
     <p><strong>Payment:</strong> <?= receipt_escape($order['payment_method'] ?? 'Cash') ?></p>
     <p><strong>Payment status:</strong> <?= receipt_escape($order['payment_status'] ?? 'Pending') ?></p>
-    <p><strong>Order status:</strong> <?= receipt_escape($order['status'] ?? 'Pending') ?></p>
+    <p><strong>Sale status:</strong> <?= receipt_escape($order['status'] ?? 'Pending') ?></p>
   </div>
   <table class="items"><thead><tr><th>Item</th><th>Qty</th><th>Unit price</th><th>Subtotal</th></tr></thead><tbody>
   <?php foreach ($items as $item): ?><tr><td><?= receipt_escape($item['product_name']) ?><?= !empty($item['size']) ? ' (Size ' . receipt_escape($item['size']) . ')' : '' ?></td><td><?= (int)$item['quantity'] ?></td><td><?= receipt_money($item['unit_price']) ?></td><td><?= receipt_money($item['unit_price'] * $item['quantity']) ?></td></tr><?php endforeach; ?>
   </tbody></table>
-  <div class="totals"><p><span>Subtotal</span><strong><?= receipt_money($order['total']) ?></strong></p><p class="grand"><span>Total</span><span><?= receipt_money($order['total']) ?></span></p>
+  <div class="totals"><p><span>Subtotal</span><strong><?= receipt_money($order['total']) ?></strong></p><p><span>Discount</span><strong><?= receipt_money(0) ?></strong></p><p class="grand"><span>Grand Total</span><span><?= receipt_money($order['total']) ?></span></p>
   <?php if (($order['payment_status'] ?? '') === 'Paid'): ?><p><span>Cash received</span><strong><?= receipt_money($order['cash_received']) ?></strong></p><p><span>Change</span><strong><?= receipt_money($order['change_due']) ?></strong></p><?php else: ?><p><span>Amount due</span><strong><?= receipt_money($order['total']) ?></strong></p><?php endif; ?></div>
   <div class="note"><strong>Thank you for shopping at Shoeskopo!</strong><p>This is your order receipt.</p>
   <?php if (!empty($_SESSION['order_confirmation_notice'])): ?>

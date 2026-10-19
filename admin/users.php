@@ -163,7 +163,7 @@ include __DIR__ . '/../includes/header.php';
     <input type="hidden" name="id" value="<?= (int)($edit['id'] ?? 0) ?>">
     <div class="field"><label>Full name</label><input name="full_name" value="<?= e($edit['full_name'] ?? '') ?>"></div>
     <div class="field"><label>Username</label><input name="username" required maxlength="80" value="<?= e($edit['username'] ?? '') ?>"></div>
-    <div class="field"><label>Email</label><input type="text" name="email" value="<?= e($edit['email'] ?? '') ?>"></div>
+    <div class="field"><label>Email</label><input type="email" name="email" required maxlength="254" autocomplete="email" value="<?= e($edit['email'] ?? ($_POST['email'] ?? '')) ?>"></div>
     <div class="field"><label>Phone</label><input name="phone" value="<?= e($edit['phone'] ?? '') ?>"></div>
     <div class="field"><label>Address</label><textarea name="address"><?= e($edit['address'] ?? '') ?></textarea></div>
     <div class="field"><label>Role</label><select name="role"><?php foreach (['customer', 'employee', 'admin'] as $role): ?><option value="<?= e($role) ?>" <?= ($edit['role'] ?? 'customer') === $role ? 'selected' : '' ?>><?= ucfirst($role) ?></option><?php endforeach; ?></select></div>

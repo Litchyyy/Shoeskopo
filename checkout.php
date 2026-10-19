@@ -35,16 +35,33 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
       $customerEmail = (string)(current_user()['email'] ?? '');
       $customerName = $name !== '' ? $name : (string)(current_user()['username'] ?? 'Customer');
       $emailBody = "Hello {$customerName},\n\nThank you for shopping with Shoeskopo! Your order has been placed and your cash payment has been recorded.\n\nOrder number: #{$orderId}\nOrder date: " . date('Y-m-d H:i:s') . "\nOrder status: Pending\nPayment status: Paid\n\nORDER DETAILS\n";
-      $pdfText = "SHOESKOPO - ORDER CONFIRMATION / RECEIPT\nOrder #{$orderId}\nDate: " . date('Y-m-d H:i:s') . "\nCustomer: {$customerName}\nPayment: Cash (Paid)\nOrder status: Pending\n\n";
+      $orderMetaStmt = $pdo->prepare('SELECT created_at, status FROM orders WHERE id = ?');
+      $orderMetaStmt->execute([$orderId]);
+      $orderMeta = $orderMetaStmt->fetch() ?: ['created_at' => date('Y-m-d H:i:s'), 'status' => 'Pending'];
+      $receiptItems = [];
+
       foreach ($cart as $item) {
         $lineTotal = (float)$item['price'] * (int)$item['quantity'];
         $sizeText = !empty($item['size']) ? (string)$item['size'] : 'N/A';
         $itemLine = (string)$item['name'] . ' (Size ' . $sizeText . ') x ' . (int)$item['quantity'] . ' @ PHP ' . number_format((float)$item['price'], 2) . ' = PHP ' . number_format($lineTotal, 2);
         $emailBody .= $itemLine . "\n";
-        $pdfText .= $itemLine . "\n";
+        $receiptItems[] = ['name' => (string)$item['name'], 'size' => (string)($item['size'] ?? ''), 'quantity' => (int)$item['quantity'], 'unit_price' => (float)$item['price']];
       }
       $emailBody .= "\nOrder total: PHP " . number_format($total, 2) . "\nCash received: PHP " . number_format($cashReceived, 2) . "\nChange: PHP " . number_format($cashReceived - $total, 2) . "\n\nYou can view and print your receipt on the Shoeskopo website.\n\nThank you for shopping with Shoeskopo!";
-      $pdfText .= "\nOrder total: PHP " . number_format($total, 2) . "\nCash received: PHP " . number_format($cashReceived, 2) . "\nChange: PHP " . number_format($cashReceived - $total, 2) . "\n\nThank you for shopping with Shoeskopo!";
+      $receiptPdfData = shoeskopo_make_receipt_pdf([
+        'receipt_no' => $orderId,
+        'date' => (string)$orderMeta['created_at'],
+        'customer' => $customerName,
+        'payment_method' => 'Cash',
+        'payment_status' => 'Paid',
+        'sale_status' => (string)$orderMeta['status'],
+        'items' => $receiptItems,
+        'subtotal' => $total,
+        'discount' => 0,
+        'grand_total' => $total,
+        'cash_received' => $cashReceived,
+        'change' => $cashReceived - $total,
+      ]);
       $emailSent = false;
       if (filter_var($customerEmail, FILTER_VALIDATE_EMAIL)) {
         $emailSent = shoeskopo_send_mail(
@@ -52,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
           'Shoeskopo Order Confirmation - Order #' . $orderId,
           $emailBody,
           'Shoeskopo-Order-' . $orderId . '-Receipt.pdf',
-          shoeskopo_make_pdf($pdfText)
+          $receiptPdfData
         );
       } else {
         error_log('[Shoeskopo mail] Could not send order confirmation: logged-in customer email is missing or invalid.');

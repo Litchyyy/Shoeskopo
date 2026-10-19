@@ -25,7 +25,7 @@ include __DIR__ . '/includes/header.php';
 <div class="auth-background"><section class="form-wrap"><h1>SHOESKOPO</h1><p class="muted" style="text-align:center">Sign in to your account</p>
 <?php if ($error): ?><div class="form-error"><?= e($error) ?></div><?php endif; ?>
 <form method="post" novalidate>
-<div class="field"><label for="email">Email</label><input id="email" name="email" type="text" autocomplete="username"></div>
+<div class="field"><label for="email">Email</label><input id="email" name="email" type="email" required maxlength="254" autocomplete="username" value="<?= e($_POST['email'] ?? '') ?>"></div>
 <div class="field"><label for="password">Password</label><input id="password" name="password" type="password" autocomplete="current-password"></div>
 <label><input type="checkbox" id="showPassword"> Show Password</label>
 <button class="btn btn-blue" type="submit" style="margin-top:20px">LOG IN</button>

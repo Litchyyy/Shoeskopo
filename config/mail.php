@@ -1,14 +1,18 @@
+
 <?php
-// Mailtrap Email Sandbox SMTP configuration.
-// Set MAILTRAP_USERNAME and MAILTRAP_PASSWORD in your environment, or enter fresh
-// regenerated credentials below locally. Do not commit credentials to Git.
+// Email Sandbox mode: messages are captured for testing
+// and are not delivered to real customers.
+
 return [
     'enabled' => true,
-    'host' => 'smtp.gmail.com',
-    'port' => 587,
-    'username' => 'shoeskopoproject@gmail.com',
-    'password' => 'kjrm laoj taiu bpvd',
+    'host' => 'sandbox.smtp.mailtrap.io',
+    'port' => 2525,
+
+    // Enter your Mailtrap Email Sandbox credentials here.
+    'username' => 'da7fd139509fd8',
+    'password' => 'd2e39025eeb8d2',
+
     'encryption' => 'tls',
-    'from_email' => 'shoeskopoproject@gmail.com',
+    'from_email' => 'sandbox@shoeskopo.test',
     'from_name' => 'Shoeskopo',
 ];
