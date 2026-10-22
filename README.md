@@ -1,9 +1,8 @@
 <div align="center">
-  <img src="anime-profile.svg" alt="Anime profile" width="420">
+  
 
 </div>
-  <img src="cat.svg" alt="Cute Shoeskopo cat" width="180" />
-  <img src="anime-profile.svg" alt="Anime profile" width="420">
+  <img src="anime-profile.svg" alt="Anime profile" width="180" />
 
   <h1>SHOESKOPO</h1>
   <p><strong>Online Shoe Store and Inventory Management System</strong></p>
