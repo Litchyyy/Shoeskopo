@@ -4,13 +4,16 @@ require_once __DIR__ . '/../includes/functions.php';
 require_role(['employee', 'admin']);
 
 $pageTitle = 'Employee Dashboard';
-$productCount = (int)$pdo->query('SELECT COUNT(*) FROM products')->fetchColumn();
-$lowStockCount = (int)$pdo->query('SELECT COUNT(*) FROM products WHERE stock <= 5')->fetchColumn();
+$productCount = (int)$pdo->query('SELECT COUNT(*) 
+FROM products')->fetchColumn();
+$lowStockCount = (int)$pdo->query('SELECT COUNT(*) 
+FROM products 
+WHERE stock <= 5')->fetchColumn();
 $todaySalesStmt = $pdo->prepare(
-    "SELECT COALESCE(SUM(total), 0)
-     FROM orders
-     WHERE status = 'Completed'
-       AND DATE(created_at) = CURDATE()"
+    "SELECT COALESCE(SUM(total), 0) 
+FROM orders 
+WHERE status = 'Completed'
+    AND DATE(created_at) = CURDATE()"
 );
 $todaySalesStmt->execute();
 $todaySales = (float)$todaySalesStmt->fetchColumn();

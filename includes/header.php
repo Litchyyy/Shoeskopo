@@ -25,7 +25,14 @@ $dashboardUrl = $role === 'employee' ? '/shoeskopo/employee/index.php' : '/shoes
   </nav>
   <?php endif; ?>
   <div class="header-actions">
-    <?php if (!$isAdminArea && (!$user || $user['role']==='customer')): ?><a href="/shoeskopo/cart.php">CART (<?= array_sum(array_column($_SESSION['cart'] ?? [], 'quantity')) ?>)</a><?php endif; ?>
+    <?php if (!$isAdminArea && (!$user || $user['role']==='customer')): ?>
+      <a class="cart-icon-link" href="/shoeskopo/cart.php" aria-label="Shopping cart (<?= array_sum(array_column($_SESSION['cart'] ?? [], 'quantity')) ?> items)" title="Shopping cart">
+        <svg class="header-cart-icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/>
+        </svg>
+        <span class="cart-count"><?= array_sum(array_column($_SESSION['cart'] ?? [], 'quantity')) ?></span>
+      </a>
+    <?php endif; ?>
     <?php if ($user): ?>
       <?php if (in_array($user['role'], ['admin','employee'], true)): ?><a href="<?= e($dashboardUrl) ?>">DASHBOARD</a><?php endif; ?>
       <?php if (!$isAdminArea && $user['role']==='customer'): ?><a href="/shoeskopo/orders.php">ORDERS</a><a href="/shoeskopo/profile.php">MY PROFILE</a><?php endif; ?>

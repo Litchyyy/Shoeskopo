@@ -3,12 +3,13 @@ require_once __DIR__ . '/../config/db.php';
 require_once __DIR__ . '/../includes/functions.php';
 require_role(['admin']);
 
-$ordersStmt = $pdo->prepare("SELECT o.*, u.email, p.payment_status
-     FROM orders o
-     JOIN users u ON u.id = o.user_id
-     LEFT JOIN payments p ON p.order_id = o.id
-     WHERE o.status = ?
-     ORDER BY o.created_at DESC");
+$ordersStmt = $pdo->prepare("SELECT o.*, u.email, p.payment_status 
+FROM orders o 
+    JOIN users u ON u.id = o.user_id 
+    LEFT 
+    JOIN payments p ON p.order_id = o.id 
+WHERE o.status = ? 
+ORDER BY o.created_at DESC");
 $ordersStmt->execute(['Completed']);
 $orders = $ordersStmt->fetchAll();
 

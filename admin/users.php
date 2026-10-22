@@ -17,7 +17,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $pdo->beginTransaction();
 
-            $stmt = $pdo->prepare('SELECT id FROM orders WHERE user_id = ?');
+            $stmt = $pdo->prepare('SELECT id 
+FROM orders 
+WHERE user_id = ?');
             $stmt->execute([$id]);
             $orderIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
 
@@ -31,17 +33,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute($orderIds);
             }
 
-            $stmt = $pdo->prepare('DELETE FROM users WHERE id = ?');
+            $stmt = $pdo->prepare('DELETE 
+FROM users 
+WHERE id = ?');
             $stmt->execute([$id]);
             $pdo->commit();
+            $_SESSION['swal_flash'] = 'Changes saved successfully.';
             header('Location: users.php?message=deleted');
             exit;
         }
 
         if ($action === 'toggle_active') {
             if ($id < 1 || $id === $currentUserId) throw new RuntimeException('You cannot deactivate your own signed-in account.');
-            $st=$pdo->prepare('UPDATE users SET is_active=IF(is_active=1,0,1) WHERE id=?'); $st->execute([$id]);
-            header('Location: users.php?message=active'); exit;
+            $st=$pdo->prepare('UPDATE users 
+SET is_active=IF(is_active=1,0,1) 
+WHERE id=?'); $st->execute([$id]);
+            $_SESSION['swal_flash'] = 'Changes saved successfully.';
+            header('Location: users.php?message=active');
+            exit;
         }
 
         if ($action === 'password') {
@@ -49,8 +58,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($id < 1 || strlen($password) < 8) {
                 throw new RuntimeException('Enter a new password with at least 8 characters.');
             }
-            $stmt = $pdo->prepare('UPDATE users SET password_hash = ? WHERE id = ?');
+            $stmt = $pdo->prepare('UPDATE users 
+SET password_hash = ? 
+WHERE id = ?');
             $stmt->execute([password_hash($password, PASSWORD_DEFAULT), $id]);
+            $_SESSION['swal_flash'] = 'Changes saved successfully.';
             header('Location: users.php?message=password');
             exit;
         }
@@ -75,21 +87,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($action === 'create') {
             $stmt = $pdo->prepare(
-                'INSERT INTO users (full_name, username, email, phone, address, role, password_hash)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)'
+                'INSERT INTO users (full_name, username, email, phone, address, role, password_hash) 
+VALUES (?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([$fullName, $username, $email, $phone, $address, $role, password_hash($password, PASSWORD_DEFAULT)]);
+            $_SESSION['swal_flash'] = 'Changes saved successfully.';
             header('Location: users.php?message=created');
             exit;
         }
 
         if ($action === 'update' && $id > 0) {
             $stmt = $pdo->prepare(
-                'UPDATE users
-                 SET full_name = ?, username = ?, email = ?, phone = ?, address = ?, role = ?
-                 WHERE id = ?'
+                'UPDATE users 
+SET full_name = ?, username = ?, email = ?, phone = ?, address = ?, role = ? 
+WHERE id = ?'
             );
             $stmt->execute([$fullName, $username, $email, $phone, $address, $role, $id]);
+            $_SESSION['swal_flash'] = 'Changes saved successfully.';
             header('Location: users.php?message=updated');
             exit;
         }
@@ -107,13 +121,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $search = trim($_GET['q'] ?? '');
 $stmt = $pdo->prepare(
-    "SELECT id, username, email, role, created_at, full_name, phone, address, is_active
-     FROM users
-     WHERE username LIKE ?
-        OR email LIKE ?
-        OR COALESCE(full_name, '') LIKE ?
-        OR COALESCE(phone, '') LIKE ?
-     ORDER BY created_at DESC"
+    "SELECT id, username, email, role, created_at, full_name, phone, address, is_active 
+FROM users 
+WHERE username LIKE ? OR email LIKE ? OR COALESCE(full_name, '') LIKE ? OR COALESCE(phone, '') LIKE ? 
+ORDER BY created_at DESC"
 );
 $like = '%' . $search . '%';
 $stmt->execute([$like, $like, $like, $like]);
@@ -122,9 +133,9 @@ $users = $stmt->fetchAll();
 $edit = null;
 if (isset($_GET['edit'])) {
     $stmt = $pdo->prepare(
-        'SELECT id, username, email, role, created_at, full_name, phone, address
-         FROM users
-         WHERE id = ?'
+        'SELECT id, username, email, role, created_at, full_name, phone, address 
+FROM users 
+WHERE id = ?'
     );
     $stmt->execute([(int)$_GET['edit']]);
     $edit = $stmt->fetch() ?: null;
@@ -133,10 +144,10 @@ if (isset($_GET['edit'])) {
 $history = [];
 if (isset($_GET['history'])) {
     $stmt = $pdo->prepare(
-        'SELECT id, total, status, created_at
-         FROM orders
-         WHERE user_id = ?
-         ORDER BY created_at DESC'
+        'SELECT id, total, status, created_at 
+FROM orders 
+WHERE user_id = ? 
+ORDER BY created_at DESC'
     );
     $stmt->execute([(int)$_GET['history']]);
     $history = $stmt->fetchAll();
@@ -199,9 +210,9 @@ include __DIR__ . '/../includes/header.php';
         </details>
         <?php if ((int)$user['id'] !== $currentUserId): ?>
         <form method="post" style="margin-top:8px"><input type="hidden" name="action" value="toggle_active"><input type="hidden" name="id" value="<?= (int)$user['id'] ?>"><button class="btn" type="submit"><?= (int)$user['is_active']===1 ? 'Deactivate user' : 'Activate user' ?></button></form>
-        <form method="post" onsubmit="return confirm('Delete this user and their order history?')" style="margin-top:8px">
+        <form method="post" data-confirm='Delete this user and their order history?' style="margin-top:8px">
             <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$user['id'] ?>">
-            <button class="btn" type="submit">Delete</button>
+            <button class="btn" type="submit">🗑</button>
         </form>
         <?php endif; ?>
     </td>

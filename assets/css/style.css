@@ -15,3 +15,8 @@
 
 /* Compact icon-only edit/save controls */
 .icon-button{display:inline-flex;align-items:center;justify-content:center;min-width:34px;min-height:34px;padding:7px 9px;border:1px solid #e4a15b;border-radius:7px;background:#fff7ed;color:#8a4b08;text-decoration:none;cursor:pointer}.icon-button:hover{background:#f2a65a;color:#171717}.icon-button i{font-size:14px}
+
+/* Header shopping-cart icon */
+.header-actions .cart-icon-link { position: relative; display: inline-flex; align-items: center; justify-content: center; min-width: 36px; min-height: 36px; text-decoration: none; }
+.header-cart-icon { display: block; width: 23px; height: 23px; }
+.header-actions .cart-count { position: absolute; top: -3px; right: -7px; min-width: 17px; height: 17px; padding: 0 4px; display: inline-flex; align-items: center; justify-content: center; border-radius: 999px; background: #e87532; color: #fff; font-size: 11px; font-weight: 700; line-height: 1; }

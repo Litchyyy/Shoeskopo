@@ -14,7 +14,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($id < 1) {
                 throw new RuntimeException('Invalid expense.');
             }
-            $stmt = $pdo->prepare('DELETE FROM expenses WHERE id = ?');
+            $stmt = $pdo->prepare('DELETE 
+FROM expenses 
+WHERE id = ?');
             $stmt->execute([$id]);
             header('Location: reports.php?type=expenses&period=' . urlencode($_POST['period'] ?? 'daily') . '&message=deleted');
             exit;
@@ -32,9 +34,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($action === 'update' && $id > 0) {
             $stmt = $pdo->prepare(
-                'UPDATE expenses
-                 SET expense_date = ?, category = ?, description = ?, amount = ?
-                 WHERE id = ?'
+                'UPDATE expenses 
+SET expense_date = ?, category = ?, description = ?, amount = ? 
+WHERE id = ?'
             );
             $stmt->execute([$date, $category, $description, $amount, $id]);
             header('Location: reports.php?type=expenses&period=' . urlencode($_POST['period'] ?? 'daily') . '&message=updated');
@@ -42,8 +44,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $stmt = $pdo->prepare(
-            'INSERT INTO expenses (expense_date, category, description, amount)
-             VALUES (?, ?, ?, ?)'
+            'INSERT INTO expenses (expense_date, category, description, amount) 
+VALUES (?, ?, ?, ?)'
         );
         $stmt->execute([$date, $category, $description, $amount]);
         header('Location: reports.php?type=expenses&period=' . urlencode($_POST['period'] ?? 'daily') . '&message=added');
@@ -77,18 +79,20 @@ if ($period === 'weekly') {
 }
 
 $stmt = $pdo->prepare(
-    "SELECT COALESCE(SUM(total), 0)
-     FROM orders
-     WHERE status = 'Completed'
-       AND DATE(created_at) BETWEEN ? AND ?"
+    "SELECT COALESCE(SUM(total), 0) 
+FROM orders 
+WHERE status = 'Completed'
+    AND DATE(created_at) BETWEEN ?
+    AND ?"
 );
 $stmt->execute([$from, $to]);
 $grossSales = (float)$stmt->fetchColumn();
 
 $stmt = $pdo->prepare(
-    'SELECT COALESCE(SUM(amount), 0)
-     FROM expenses
-     WHERE expense_date BETWEEN ? AND ?'
+    'SELECT COALESCE(SUM(amount), 0) 
+FROM expenses 
+WHERE expense_date BETWEEN ?
+    AND ?'
 );
 $stmt->execute([$from, $to]);
 $expensesTotal = (float)$stmt->fetchColumn();
@@ -97,53 +101,59 @@ $expensesTotal = (float)$stmt->fetchColumn();
 $netSales = $grossSales - $expensesTotal;
 
 $stmt = $pdo->prepare(
-    'SELECT COUNT(*)
-     FROM orders
-     WHERE DATE(created_at) BETWEEN ? AND ?'
+    'SELECT COUNT(*) 
+FROM orders 
+WHERE DATE(created_at) BETWEEN ?
+    AND ?'
 );
 $stmt->execute([$from, $to]);
 $orderCount = (int)$stmt->fetchColumn();
 
 $stmt = $pdo->prepare(
-    'SELECT COUNT(DISTINCT user_id)
-     FROM orders
-     WHERE DATE(created_at) BETWEEN ? AND ?'
+    'SELECT COUNT(DISTINCT user_id) 
+FROM orders 
+WHERE DATE(created_at) BETWEEN ?
+    AND ?'
 );
 $stmt->execute([$from, $to]);
 $customers = (int)$stmt->fetchColumn();
 
 $stmt = $pdo->prepare(
-    'SELECT COALESCE(SUM(total_cost), 0)
-     FROM purchase_orders
-     WHERE order_date BETWEEN ? AND ?'
+    'SELECT COALESCE(SUM(total_cost), 0) 
+FROM purchase_orders 
+WHERE order_date BETWEEN ?
+    AND ?'
 );
 $stmt->execute([$from, $to]);
 $supplierSpend = (float)$stmt->fetchColumn();
 
 $stmt = $pdo->prepare(
-    'SELECT id, expense_date, category, description, amount
-     FROM expenses
-     WHERE expense_date BETWEEN ? AND ?
-     ORDER BY expense_date DESC, id DESC'
+    'SELECT id, expense_date, category, description, amount 
+FROM expenses 
+WHERE expense_date BETWEEN ?
+    AND ? 
+ORDER BY expense_date DESC, id DESC'
 );
 $stmt->execute([$from, $to]);
 $expenseRows = $stmt->fetchAll();
 
 if (isset($_GET['edit'])) {
-    $stmt = $pdo->prepare('SELECT * FROM expenses WHERE id = ?');
+    $stmt = $pdo->prepare('SELECT * 
+FROM expenses 
+WHERE id = ?');
     $stmt->execute([(int)$_GET['edit']]);
     $editExpense = $stmt->fetch() ?: null;
 }
 
 $inventory = $pdo->query(
-    'SELECT COUNT(*) AS product_count,
-            COALESCE(SUM(stock), 0) AS total_units,
-            COALESCE(SUM(stock * price), 0) AS retail_value,
-            COALESCE(SUM(stock <= 5), 0) AS low_stock
-     FROM products'
+    'SELECT COUNT(*) AS product_count, COALESCE(SUM(stock), 0) AS total_units, COALESCE(SUM(stock * price), 0) AS retail_value, COALESCE(SUM(stock <= 5), 0) AS low_stock 
+FROM products'
 )->fetch();
-$supplierCount = (int)$pdo->query('SELECT COUNT(*) FROM suppliers')->fetchColumn();
-$customerCount = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role = 'customer'")->fetchColumn();
+$supplierCount = (int)$pdo->query('SELECT COUNT(*) 
+FROM suppliers')->fetchColumn();
+$customerCount = (int)$pdo->query("SELECT COUNT(*) 
+FROM users 
+WHERE role = 'customer'")->fetchColumn();
 
 $pageTitle = 'Reports & Expenses';
 include __DIR__ . '/../includes/header.php';
@@ -200,9 +210,9 @@ include __DIR__ . '/../includes/header.php';
 </div>
 <?php
 $inventoryRows = $pdo->query(
-    'SELECT id, name, stock, price
-     FROM products
-     ORDER BY name ASC'
+    'SELECT id, name, stock, price 
+FROM products 
+ORDER BY name ASC'
 )->fetchAll();
 ?>
 <div class="table-wrap"><table class="data-table">
@@ -220,13 +230,14 @@ $inventoryRows = $pdo->query(
 <thead><tr><th>Supplier</th><th>Purchase orders in period</th><th>Purchase cost</th></tr></thead><tbody>
 <?php
 $stmt = $pdo->prepare(
-    'SELECT s.supplier_name, COUNT(po.id) AS order_count, COALESCE(SUM(po.total_cost), 0) AS spend
-     FROM suppliers s
-     LEFT JOIN purchase_orders po
-       ON po.supplier_id = s.id
-      AND po.order_date BETWEEN ? AND ?
-     GROUP BY s.id, s.supplier_name
-     ORDER BY spend DESC'
+    'SELECT s.supplier_name, COUNT(po.id) AS order_count, COALESCE(SUM(po.total_cost), 0) AS spend 
+FROM suppliers s 
+    LEFT 
+    JOIN purchase_orders po ON po.supplier_id = s.id
+    AND po.order_date BETWEEN ?
+    AND ? 
+GROUP BY s.id, s.supplier_name 
+ORDER BY spend DESC'
 );
 $stmt->execute([$from, $to]);
 foreach ($stmt as $row):
@@ -244,15 +255,15 @@ foreach ($stmt as $row):
 <thead><tr><th>Customer</th><th>Email</th><th>Orders</th><th>Completed sales</th></tr></thead><tbody>
 <?php
 $stmt = $pdo->prepare(
-    "SELECT u.username, u.email, COUNT(o.id) AS order_count,
-            COALESCE(SUM(CASE WHEN o.status = 'Completed' THEN o.total ELSE 0 END), 0) AS sales_total
-     FROM users u
-     LEFT JOIN orders o
-       ON o.user_id = u.id
-      AND DATE(o.created_at) BETWEEN ? AND ?
-     WHERE u.role = 'customer'
-     GROUP BY u.id, u.username, u.email
-     ORDER BY sales_total DESC"
+    "SELECT u.username, u.email, COUNT(o.id) AS order_count, COALESCE(SUM(CASE WHEN o.status = 'Completed' THEN o.total ELSE 0 END), 0) AS sales_total 
+FROM users u 
+    LEFT 
+    JOIN orders o ON o.user_id = u.id
+    AND DATE(o.created_at) BETWEEN ?
+    AND ? 
+WHERE u.role = 'customer' 
+GROUP BY u.id, u.username, u.email 
+ORDER BY sales_total DESC"
 );
 $stmt->execute([$from, $to]);
 foreach ($stmt as $row):
@@ -292,10 +303,10 @@ foreach ($stmt as $row):
     <td><?= e($expense['expense_date']) ?></td><td><?= e($expense['category']) ?></td>
     <td><?= e($expense['description']) ?></td><td><?= money($expense['amount']) ?></td>
     <td><a href="reports.php?type=expenses&amp;period=<?= e($period) ?>&amp;edit=<?= (int)$expense['id'] ?>" class="icon-button" aria-label="Edit" title="Edit">✎</a>
-        <form method="post" class="inline-form" onsubmit="return confirm('Delete this expense?')" style="display:inline">
+        <form method="post" class="inline-form" data-confirm='Delete this expense?' style="display:inline">
             <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$expense['id'] ?>">
             <input type="hidden" name="period" value="<?= e($period) ?>">
-    <input type="hidden" name="type" value="expenses"><button class="btn" type="submit">Delete</button>
+    <input type="hidden" name="type" value="expenses"><button class="btn" type="submit">🗑</button>
         </form>
     </td>
 </tr>

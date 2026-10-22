@@ -3,7 +3,9 @@ require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
 require_login();
 $user=current_user(); $error=''; $success='';
-$st=$pdo->prepare('SELECT id,username,email,full_name,phone,address,password_hash,role,avatar_path FROM users WHERE id=?');
+$st=$pdo->prepare('SELECT id,username,email,full_name,phone,address,password_hash,role,avatar_path 
+FROM users 
+WHERE id=?');
 $st->execute([$user['id']]); $record=$st->fetch();
 if(!$record){session_destroy();header('Location: login.php');exit;}
 if($_SERVER['REQUEST_METHOD']==='POST'){
@@ -13,7 +15,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if(!password_verify($current,$record['password_hash'])) $error='Current password is incorrect.';
     elseif(strlen($new)<8) $error='New password must be at least 8 characters.';
     elseif($new!==$confirm) $error='New passwords do not match.';
-    else {$st=$pdo->prepare('UPDATE users SET password_hash=? WHERE id=?');$st->execute([password_hash($new,PASSWORD_DEFAULT),$user['id']]);$success='Password updated successfully.';$st=$pdo->prepare('SELECT id,username,email,full_name,phone,address,password_hash,role,avatar_path FROM users WHERE id=?');$st->execute([$user['id']]);$record=$st->fetch();}
+    else {$st=$pdo->prepare('UPDATE users 
+SET password_hash=? 
+WHERE id=?');$st->execute([password_hash($new,PASSWORD_DEFAULT),$user['id']]);$success='Password updated successfully.';$st=$pdo->prepare('SELECT id,username,email,full_name,phone,address,password_hash,role,avatar_path 
+FROM users 
+WHERE id=?');$st->execute([$user['id']]);$record=$st->fetch();}
   } else {
     $username=trim($_POST['username']??'');$email=strtolower(trim($_POST['email']??''));$full=trim($_POST['full_name']??'');$phone=trim($_POST['phone']??'');$address=trim($_POST['address']??'');
     $avatar=$record['avatar_path']??null;
@@ -33,7 +39,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       }
     }
     if($username===''||!filter_var($email,FILTER_VALIDATE_EMAIL)) $error='Enter a username and valid email.';
-    if($error==='') {try{$st=$pdo->prepare('UPDATE users SET username=?,email=?,full_name=?,phone=?,address=?,avatar_path=? WHERE id=?');$st->execute([$username,$email,$full,$phone,$address,$avatar,$user['id']]);$_SESSION['user']['username']=$username;$_SESSION['user']['email']=$email;$success='Profile updated successfully.';$st=$pdo->prepare('SELECT id,username,email,full_name,phone,address,password_hash,role,avatar_path FROM users WHERE id=?');$st->execute([$user['id']]);$record=$st->fetch();}catch(PDOException $e){$error='That email may already be in use.';}}
+    if($error==='') {try{$st=$pdo->prepare('UPDATE users 
+SET username=?,email=?,full_name=?,phone=?,address=?,avatar_path=? 
+WHERE id=?');$st->execute([$username,$email,$full,$phone,$address,$avatar,$user['id']]);$_SESSION['user']['username']=$username;$_SESSION['user']['email']=$email;$success='Profile updated successfully.';$st=$pdo->prepare('SELECT id,username,email,full_name,phone,address,password_hash,role,avatar_path 
+FROM users 
+WHERE id=?');$st->execute([$user['id']]);$record=$st->fetch();}catch(PDOException $e){$error='That email may already be in use.';}}
   }
 }
 $pageTitle='My Profile';include __DIR__.'/includes/header.php';

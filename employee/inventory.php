@@ -4,9 +4,10 @@ require_once __DIR__ . '/../includes/functions.php';
 require_role(['employee', 'admin']);
 
 $search = trim($_GET['q'] ?? '');
-$sql = 'SELECT p.id, p.name, p.price, p.stock, c.name AS category_name
-        FROM products p
-        LEFT JOIN categories c ON c.id = p.category_id';
+$sql = 'SELECT p.id, p.name, p.price, p.stock, c.name AS category_name 
+FROM products p 
+    LEFT 
+    JOIN categories c ON c.id = p.category_id';
 $params = [];
 
 if ($search !== '') {

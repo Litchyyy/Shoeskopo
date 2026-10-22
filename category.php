@@ -31,14 +31,17 @@ if (!isset($orderBy[$sort])) {
 
 // Load categories
 $categories = $pdo->query(
-    "SELECT * FROM categories ORDER BY name"
+    "SELECT * 
+FROM categories 
+ORDER BY name"
 )->fetchAll();
 
 // Build products query
-$sql = "SELECT p.*, c.name AS category_name
-        FROM products p
-        LEFT JOIN categories c ON c.id = p.category_id
-        WHERE 1=1";
+$sql = "SELECT p.*, c.name AS category_name 
+FROM products p 
+    LEFT 
+    JOIN categories c ON c.id = p.category_id 
+WHERE p.stock > 0";
 
 $args = [];
 
@@ -106,7 +109,8 @@ include __DIR__ . '/includes/header.php';
 
         <h1>ITEMS - <?= e(strtoupper($audience === 'all' ? 'ALL' : $audience)) ?></h1>
 
-        <form method="get" action="category.php" class="inline-form search-filter">
+        <style>.icon-action{width:44px;height:44px;border:0;border-radius:10px;background:#f4a261;color:#222;font-size:25px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}.icon-action:hover{filter:brightness(.95)}</style>
+<form method="get" action="category.php" class="inline-form search-filter">
 
             <input type="hidden" name="audience" value="<?= e($audience) ?>">
 

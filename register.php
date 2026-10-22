@@ -15,7 +15,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     elseif ($password !== $confirm) $error = 'Passwords do not match.';
     else {
     try {
-      $stmt=$pdo->prepare("INSERT INTO users(username,email,password_hash,role,avatar_path) VALUES(?,?,?,'customer',?)");
+      $stmt=$pdo->prepare("INSERT INTO users(username,email,password_hash,role,avatar_path) 
+VALUES(?,?,?,'customer',?)");
       $stmt->execute([$username,$email,password_hash($password,PASSWORD_DEFAULT),$avatar]);
       header('Location: login.php?registered=1'); exit;
     } catch (PDOException $e) { $error='That email may already be registered.'; }

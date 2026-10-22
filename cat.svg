@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="180" viewBox="0 0 220 180" role="img" aria-labelledby="title desc">
+  <title id="title">Cute cat</title>
+  <desc id="desc">A friendly cartoon cat with pointy ears, whiskers, and a smile.</desc>
+  <rect width="220" height="180" rx="18" fill="#fff7ed"/>
+  <path d="M52 65 L47 25 L82 45 Q110 32 138 45 L173 25 L168 65 Q184 86 178 116 Q171 148 110 150 Q49 148 42 116 Q36 86 52 65Z" fill="#f9b56b" stroke="#6b4428" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M59 54 L56 35 L77 49 M143 49 L164 35 L161 54" fill="#f28b82" stroke="#6b4428" stroke-width="3" stroke-linejoin="round"/>
+  <ellipse cx="82" cy="86" rx="7" ry="10" fill="#30251f"/><ellipse cx="138" cy="86" rx="7" ry="10" fill="#30251f"/>
+  <circle cx="84" cy="83" r="2.5" fill="white"/><circle cx="140" cy="83" r="2.5" fill="white"/>
+  <path d="M103 101 Q110 107 117 101 Q110 116 103 101Z" fill="#d96c75" stroke="#6b4428" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M110 114 Q99 128 90 116 M110 114 Q121 128 130 116" fill="none" stroke="#6b4428" stroke-width="3" stroke-linecap="round"/>
+  <path d="M72 105 L36 98 M72 115 L37 119 M148 105 L184 98 M148 115 L183 119" fill="none" stroke="#6b4428" stroke-width="2.5" stroke-linecap="round"/>
+  <circle cx="69" cy="103" r="7" fill="#f28b82" opacity=".7"/><circle cx="151" cy="103" r="7" fill="#f28b82" opacity=".7"/>
+</svg>

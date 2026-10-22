@@ -13,36 +13,54 @@ function current_user(): ?array {
 function shoeskopo_cart_table(PDO $pdo): void {
     static $ready = false;
     if ($ready) return;
-    $pdo->exec("CREATE TABLE IF NOT EXISTS customer_cart_items (
-        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        product_id INT NOT NULL,
-        product_name VARCHAR(255) NOT NULL,
-        price DECIMAL(10,2) NOT NULL DEFAULT 0,
-        image_url VARCHAR(500) DEFAULT NULL,
-        size VARCHAR(50) NOT NULL DEFAULT '',
-        quantity INT NOT NULL DEFAULT 1,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY unique_user_product_size (user_id, product_id, size),
-        KEY idx_customer_cart_user (user_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS customer_cart_items ( id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, product_id INT NOT NULL, product_name VARCHAR(255) NOT NULL, price DECIMAL(10,2) NOT NULL DEFAULT 0, image_url VARCHAR(500) DEFAULT NULL, size VARCHAR(50) NOT NULL DEFAULT '', quantity INT NOT NULL DEFAULT 1, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, UNIQUE KEY unique_user_product_size (user_id, product_id, size), KEY idx_customer_cart_user (user_id) ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $ready = true;
 }
+
+/** Ensure product discount support exists for older local databases. */
+function shoeskopo_ensure_discount_column(PDO $pdo): void {
+    static $ready = false;
+    if ($ready) return;
+    $check = $pdo->query("SHOW COLUMNS FROM products LIKE 'discount_percent'");
+    if (!$check->fetch()) {
+        $pdo->exec("ALTER TABLE products ADD COLUMN discount_percent DECIMAL(5,2) NOT NULL DEFAULT 0");
+    }
+    $ready = true;
+}
+
 function shoeskopo_load_cart(PDO $pdo): array {
+    shoeskopo_ensure_discount_column($pdo);
     $user = current_user();
     if ($user && ($user['role'] ?? '') === 'customer') {
         shoeskopo_cart_table($pdo);
-        $st = $pdo->prepare('SELECT product_id, product_name AS name, price, image_url, size, quantity FROM customer_cart_items WHERE user_id=? ORDER BY id');
+        $st = $pdo->prepare('SELECT c.product_id, c.product_name AS name, p.price AS base_price, p.image_url, c.size, c.quantity
+FROM customer_cart_items c JOIN products p ON p.id=c.product_id
+WHERE c.user_id=? ORDER BY c.id');
         $st->execute([(int)$user['id']]);
         $cart = [];
         foreach ($st->fetchAll() as $item) {
             $key = (int)$item['product_id'] . '_' . (string)$item['size'];
-            $cart[$key] = ['product_id'=>(int)$item['product_id'], 'name'=>$item['name'], 'price'=>(float)$item['price'], 'image_url'=>$item['image_url'], 'size'=>$item['size'], 'quantity'=>(int)$item['quantity']];
+            $basePrice = (float)$item['base_price'];
+            $cart[$key] = ['product_id'=>(int)$item['product_id'], 'name'=>$item['name'], 'price'=>$basePrice, 'base_price'=>$basePrice, 'discount_percent'=>0, 'image_url'=>$item['image_url'], 'size'=>$item['size'], 'quantity'=>(int)$item['quantity']];
         }
         $_SESSION['cart'] = $cart;
         return $cart;
     }
     $_SESSION['cart'] = $_SESSION['cart'] ?? [];
+    if ($_SESSION['cart']) {
+        $lookup = $pdo->prepare('SELECT price FROM products WHERE id=?');
+        foreach ($_SESSION['cart'] as &$cartItem) {
+            $lookup->execute([(int)($cartItem['product_id'] ?? 0)]);
+            $product = $lookup->fetch();
+            if ($product) {
+                $base = (float)$product['price'];
+                $cartItem['base_price'] = $base;
+                $cartItem['discount_percent'] = 0;
+                $cartItem['price'] = $base;
+            }
+        }
+        unset($cartItem);
+    }
     return $_SESSION['cart'];
 }
 function shoeskopo_save_cart(PDO $pdo, array $cart): void {
@@ -52,9 +70,12 @@ function shoeskopo_save_cart(PDO $pdo, array $cart): void {
     shoeskopo_cart_table($pdo);
     $pdo->beginTransaction();
     try {
-        $del = $pdo->prepare('DELETE FROM customer_cart_items WHERE user_id=?');
+        $del = $pdo->prepare('DELETE 
+FROM customer_cart_items 
+WHERE user_id=?');
         $del->execute([(int)$user['id']]);
-        $ins = $pdo->prepare('INSERT INTO customer_cart_items (user_id,product_id,product_name,price,image_url,size,quantity) VALUES (?,?,?,?,?,?,?)');
+        $ins = $pdo->prepare('INSERT INTO customer_cart_items (user_id,product_id,product_name,price,image_url,size,quantity) 
+VALUES (?,?,?,?,?,?,?)');
         foreach ($cart as $item) {
             $ins->execute([(int)$user['id'], (int)$item['product_id'], (string)$item['name'], (float)$item['price'], $item['image_url'] ?? null, (string)($item['size'] ?? ''), max(1,(int)$item['quantity'])]);
         }
@@ -69,7 +90,9 @@ function shoeskopo_clear_cart(PDO $pdo): void {
     $user = current_user();
     if ($user && ($user['role'] ?? '') === 'customer') {
         shoeskopo_cart_table($pdo);
-        $st = $pdo->prepare('DELETE FROM customer_cart_items WHERE user_id=?');
+        $st = $pdo->prepare('DELETE 
+FROM customer_cart_items 
+WHERE user_id=?');
         $st->execute([(int)$user['id']]);
     }
 }
@@ -84,7 +107,9 @@ function require_login(): void {
     // Refresh the account status from the database so deactivated accounts lose access.
     if (isset($GLOBALS['pdo'])) {
         try {
-            $st = $GLOBALS['pdo']->prepare('SELECT is_active, role FROM users WHERE id = ?');
+            $st = $GLOBALS['pdo']->prepare('SELECT is_active, role 
+FROM users 
+WHERE id = ?');
             $st->execute([(int)current_user()['id']]);
             $account = $st->fetch();
             if (!$account || (int)($account['is_active'] ?? 1) !== 1) {
@@ -249,7 +274,7 @@ function shoeskopo_send_mail(string $to, string $subject, string $body, ?string 
 
 function require_role(array $roles): void {
     require_login();
-    if (!in_array(current_user()['role'] ?? '', $roles, true)) {
+    if (!in_array(strtolower(trim((string)(current_user()['role'] ?? ''))), array_map(static fn($role) => strtolower(trim((string)$role)), $roles), true)) {
         http_response_code(403);
         exit('Access denied.');
     }

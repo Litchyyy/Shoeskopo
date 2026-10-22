@@ -6,9 +6,9 @@ require_role(['employee', 'admin']);
 $error = '';
 $successOrderId = isset($_GET['completed']) ? (int)$_GET['completed'] : 0;
 $products = $pdo->query(
-    'SELECT id, name, price, stock
-     FROM products
-     ORDER BY name'
+    'SELECT id, name, price, stock 
+FROM products 
+ORDER BY name'
 )->fetchAll();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -30,9 +30,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $stmt = $pdo->prepare(
-                'SELECT id, name, price, stock
-                 FROM products
-                 WHERE id = ?'
+                'SELECT id, name, price, stock 
+FROM products 
+WHERE id = ?'
             );
             $stmt->execute([(int)$productId]);
             $product = $stmt->fetch();
@@ -64,7 +64,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->beginTransaction();
 
                 // Lock and re-check stock to avoid selling more than is available.
-                $lockStmt = $pdo->prepare('SELECT stock FROM products WHERE id = ? FOR UPDATE');
+                $lockStmt = $pdo->prepare('SELECT stock 
+FROM products 
+WHERE id = ? 
+FOR UPDATE');
                 foreach ($cartItems as $item) {
                     $lockStmt->execute([(int)$item['id']]);
                     $available = $lockStmt->fetchColumn();
@@ -74,8 +77,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $orderStmt = $pdo->prepare(
-                    "INSERT INTO orders (user_id, total, status, full_name, phone, address)
-                     VALUES (?, ?, 'Completed', ?, ?, ?)"
+                    "INSERT INTO orders (user_id, total, status, full_name, phone, address) 
+VALUES (?, ?, 'Completed', ?, ?, ?)"
                 );
                 $orderStmt->execute([
                     (int)current_user()['id'],
@@ -87,20 +90,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $orderId = (int)$pdo->lastInsertId();
 
                 $paymentStmt = $pdo->prepare(
-                    "INSERT INTO payments
-                        (order_id, payment_method, payment_status, cash_received, change_due, paid_at)
-                     VALUES (?, 'Cash', 'Paid', ?, ?, NOW())"
+                    "INSERT INTO payments (order_id, payment_method, payment_status, cash_received, change_due, paid_at) 
+VALUES (?, 'Cash', 'Paid', ?, ?, NOW())"
                 );
                 $paymentStmt->execute([$orderId, $cashReceived, $cashReceived - $total]);
 
                 $itemStmt = $pdo->prepare(
-                    'INSERT INTO order_items (order_id, product_id, product_name, size, quantity, unit_price)
-                     VALUES (?, ?, ?, ?, ?, ?)'
+                    'INSERT INTO order_items (order_id, product_id, product_name, size, quantity, unit_price) 
+VALUES (?, ?, ?, ?, ?, ?)'
                 );
-                $stockStmt = $pdo->prepare('UPDATE products SET stock = stock - ? WHERE id = ?');
+                $stockStmt = $pdo->prepare('UPDATE products 
+SET stock = stock - ? 
+WHERE id = ?');
                 $logStmt = $pdo->prepare(
-                    "INSERT INTO inventory_logs (product_id, change_qty, reason, reference_type, reference_id)
-                     VALUES (?, ?, 'Employee manual sale', 'order', ?)"
+                    "INSERT INTO inventory_logs (product_id, change_qty, reason, reference_type, reference_id) 
+VALUES (?, ?, 'Employee manual sale', 'order', ?)"
                 );
 
                 foreach ($cartItems as $item) {
@@ -262,7 +266,7 @@ include __DIR__ . '/../includes/header.php';
         cart.forEach(item => {
           const subtotal = item.price * item.qty; total += subtotal;
           const tr = document.createElement('tr');
-          tr.innerHTML = `<td></td><td>${money(item.price)}</td><td><input type="number" min="1" max="${item.stock}" value="${item.qty}" aria-label="Quantity"></td><td>${money(subtotal)}</td><td><button type="button" class="remove-cart-item">Remove</button></td>`;
+          tr.innerHTML = `<td></td><td>${money(item.price)}</td><td><input type="number" min="1" max="${item.stock}" value="${item.qty}" aria-label="Quantity"></td><td>${money(subtotal)}</td><td><button type="button" class="remove-cart-item">🗑</button></td>`;
           tr.children[0].textContent = item.name;
           tr.querySelector('input').addEventListener('change', e => {
             const q = Math.max(1, Math.min(item.stock, parseInt(e.target.value, 10) || 1)); item.qty = q; renderCart();

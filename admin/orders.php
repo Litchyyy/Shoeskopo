@@ -6,10 +6,17 @@ require_role(['admin']);
 $statuses = ['Pending', 'Processing', 'Shipped', 'Completed', 'Cancelled'];
 $error = '';
 function notify_order_status(PDO $pdo, int $orderId, string $newStatus): bool {
-    $st = $pdo->prepare('SELECT o.*, u.email, p.payment_method, p.payment_status, p.cash_received, p.change_due, p.paid_at FROM orders o JOIN users u ON u.id=o.user_id LEFT JOIN payments p ON p.order_id=o.id WHERE o.id=?');
+    $st = $pdo->prepare('SELECT o.*, u.email, p.payment_method, p.payment_status, p.cash_received, p.change_due, p.paid_at 
+FROM orders o 
+    JOIN users u ON u.id=o.user_id 
+    LEFT 
+    JOIN payments p ON p.order_id=o.id 
+WHERE o.id=?');
     $st->execute([$orderId]); $o = $st->fetch();
     if (!$o || !filter_var((string)($o['email'] ?? ''), FILTER_VALIDATE_EMAIL)) return false;
-    $it = $pdo->prepare('SELECT product_name,size,quantity,unit_price FROM order_items WHERE order_id=?');
+    $it = $pdo->prepare('SELECT product_name,size,quantity,unit_price 
+FROM order_items 
+WHERE order_id=?');
     $it->execute([$orderId]); $rows = $it->fetchAll();
     $items = []; $subtotal = 0.0; $details = '';
     foreach ($rows as $item) {
@@ -51,33 +58,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('Enter a valid sale total and status.');
             }
             if ($status === 'Completed') {
-                $paymentStmt = $pdo->prepare('SELECT payment_status FROM payments WHERE order_id = ?');
+                $paymentStmt = $pdo->prepare('SELECT payment_status 
+FROM payments 
+WHERE order_id = ?');
                 $paymentStmt->execute([$id]);
                 if ($paymentStmt->fetchColumn() !== 'Paid') {
                     throw new RuntimeException('Record the cash payment before completing this sale.');
                 }
             }
-            $oldStmt=$pdo->prepare('SELECT status FROM orders WHERE id=?'); $oldStmt->execute([$id]); $oldStatus=$oldStmt->fetchColumn();
+            $oldStmt = $pdo->prepare('SELECT status FROM orders WHERE id = ?');
+            $oldStmt->execute([$id]);
+            $oldStatus = $oldStmt->fetchColumn();
+            if ($oldStatus === 'Completed' && $status !== 'Completed') {
+                throw new RuntimeException('Completed orders are locked and their status cannot be changed.');
+            }
             $stmt = $pdo->prepare('UPDATE orders SET total = ?, status = ? WHERE id = ?');
             $stmt->execute([$total, $status, $id]);
             if ($oldStatus !== $status) { $mailSent = notify_order_status($pdo,$id,$status); $_SESSION['order_mail_notice'] = $mailSent ? 'Customer notification sent to the email sandbox.' : 'Order updated, but email was not sent. Check Mailtrap SMTP settings and the customer email.'; }
         } elseif ($action === 'delete') {
             $pdo->beginTransaction();
-            $items = $pdo->prepare('SELECT product_id, quantity FROM order_items WHERE order_id = ?');
+            $items = $pdo->prepare('SELECT product_id, quantity 
+FROM order_items 
+WHERE order_id = ?');
             $items->execute([$id]);
-            $restore = $pdo->prepare('UPDATE products SET stock = stock + ? WHERE id = ?');
+            $restore = $pdo->prepare('UPDATE products 
+SET stock = stock + ? 
+WHERE id = ?');
             foreach ($items as $item) {
                 $restore->execute([(int)$item['quantity'], (int)$item['product_id']]);
             }
-            $stmt = $pdo->prepare('DELETE FROM inventory_logs WHERE reference_type = \'order\' AND reference_id = ?');
+            $stmt = $pdo->prepare('DELETE 
+FROM inventory_logs 
+WHERE reference_type = \'order\' AND reference_id = ?');
             $stmt->execute([$id]);
-            $stmt = $pdo->prepare('DELETE FROM order_items WHERE order_id = ?');
+            $stmt = $pdo->prepare('DELETE 
+FROM order_items 
+WHERE order_id = ?');
             $stmt->execute([$id]);
-            $stmt = $pdo->prepare('DELETE FROM payments WHERE order_id = ?');
+            $stmt = $pdo->prepare('DELETE 
+FROM payments 
+WHERE order_id = ?');
             $stmt->execute([$id]);
-            $stmt = $pdo->prepare('DELETE FROM orders WHERE id = ?');
+            $stmt = $pdo->prepare('DELETE 
+FROM orders 
+WHERE id = ?');
             $stmt->execute([$id]);
             $pdo->commit();
+            $_SESSION['swal_flash'] = 'Changes saved successfully.';
             header('Location: orders.php?updated=1');
             exit;
         } elseif ($action === 'status') {
@@ -87,20 +114,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             // Completed sales must have recorded payment first.
             if ($status === 'Completed') {
-                $stmt = $pdo->prepare("SELECT payment_status FROM payments WHERE order_id = ?");
+                $stmt = $pdo->prepare("SELECT payment_status 
+FROM payments 
+WHERE order_id = ?");
                 $stmt->execute([$id]);
                 if ($stmt->fetchColumn() !== 'Paid') {
                     throw new RuntimeException('Record the cash payment before completing this sale.');
                 }
             }
-            $oldStmt=$pdo->prepare('SELECT status FROM orders WHERE id=?'); $oldStmt->execute([$id]); $oldStatus=$oldStmt->fetchColumn();
+            $oldStmt = $pdo->prepare('SELECT status FROM orders WHERE id = ?');
+            $oldStmt->execute([$id]);
+            $oldStatus = $oldStmt->fetchColumn();
+            if ($oldStatus === 'Completed' && $status !== 'Completed') {
+                throw new RuntimeException('Completed orders are locked and their status cannot be changed.');
+            }
             $stmt = $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?');
             $stmt->execute([$status, $id]);
             if ($oldStatus !== $status) { $mailSent = notify_order_status($pdo,$id,$status); $_SESSION['order_mail_notice'] = $mailSent ? 'Customer notification sent to the email sandbox.' : 'Order updated, but email was not sent. Check Mailtrap SMTP settings and the customer email.'; }
         }
 
-        header('Location: orders.php?updated=1');
-        exit;
+        $_SESSION['swal_flash'] = 'Changes saved successfully.';
+            header('Location: orders.php?updated=1');
+            exit;
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) {
             $pdo->rollBack();
@@ -159,13 +194,13 @@ include __DIR__ . '/../includes/header.php';
 <td>
 <form method="post" class="inline-form">
     <input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="<?= (int)$o['id'] ?>">
-    <input type="number" name="total" min="0.01" step="0.01" value="<?= e((string)$o['total']) ?>" required style="width:110px">
-    <select name="status"><?php foreach ($statuses as $s): ?><option value="<?= e($s) ?>" <?= $o['status'] === $s ? 'selected' : '' ?>><?= e($s) ?></option><?php endforeach; ?></select>
-    <button type="submit" class="btn icon-button" style="padding:8px" aria-label="Save changes" title="Save changes">💾</button>
+    <input type="number" name="total" min="0.01" step="0.01" value="<?= e((string)$o['total']) ?>" required style="width:110px" <?= $o['status'] === 'Completed' ? 'readonly aria-label="Completed order total is not editable"' : '' ?>>
+    <select name="status" <?= $o['status'] === 'Completed' ? 'disabled aria-label="Completed order status is not editable"' : '' ?>><?php foreach ($statuses as $s): ?><option value="<?= e($s) ?>" <?= $o['status'] === $s ? 'selected' : '' ?>><?= e($s) ?></option><?php endforeach; ?></select>
+    <?php if ($o['status'] !== 'Completed'): ?><button type="submit" class="btn icon-button" style="padding:8px" aria-label="Save changes" title="Save changes">💾</button><?php else: ?><span class="dashboard-badge" aria-label="Completed order status"><?= e($o['status']) ?></span><?php endif; ?>
 </form>
-<form method="post" onsubmit="return confirm('Delete this sale? Product quantities will be returned to stock.')" style="margin-top:6px">
+<form method="post" data-confirm="Delete this sale? Product quantities will be returned to stock." style="margin-top:6px">
     <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$o['id'] ?>">
-    <button type="submit" class="btn">Delete sale</button>
+    <button type="submit" class="btn btn-danger icon-button" style="padding:8px 10px" aria-label="Delete sale" title="Delete sale">🗑️</button>
 </form>
 </td>
 </tr>

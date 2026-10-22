@@ -13,26 +13,17 @@ function current_user(): ?array {
 function shoeskopo_cart_table(PDO $pdo): void {
     static $ready = false;
     if ($ready) return;
-    $pdo->exec("CREATE TABLE IF NOT EXISTS customer_cart_items (
-        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-        user_id INT NOT NULL,
-        product_id INT NOT NULL,
-        product_name VARCHAR(255) NOT NULL,
-        price DECIMAL(10,2) NOT NULL DEFAULT 0,
-        image_url VARCHAR(500) DEFAULT NULL,
-        size VARCHAR(50) NOT NULL DEFAULT '',
-        quantity INT NOT NULL DEFAULT 1,
-        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        UNIQUE KEY unique_user_product_size (user_id, product_id, size),
-        KEY idx_customer_cart_user (user_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+    $pdo->exec("CREATE TABLE IF NOT EXISTS customer_cart_items ( id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY, user_id INT NOT NULL, product_id INT NOT NULL, product_name VARCHAR(255) NOT NULL, price DECIMAL(10,2) NOT NULL DEFAULT 0, image_url VARCHAR(500) DEFAULT NULL, size VARCHAR(50) NOT NULL DEFAULT '', quantity INT NOT NULL DEFAULT 1, updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, UNIQUE KEY unique_user_product_size (user_id, product_id, size), KEY idx_customer_cart_user (user_id) ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
     $ready = true;
 }
 function shoeskopo_load_cart(PDO $pdo): array {
     $user = current_user();
     if ($user && ($user['role'] ?? '') === 'customer') {
         shoeskopo_cart_table($pdo);
-        $st = $pdo->prepare('SELECT product_id, product_name AS name, price, image_url, size, quantity FROM customer_cart_items WHERE user_id=? ORDER BY id');
+        $st = $pdo->prepare('SELECT product_id, product_name AS name, price, image_url, size, quantity 
+FROM customer_cart_items 
+WHERE user_id=? 
+ORDER BY id');
         $st->execute([(int)$user['id']]);
         $cart = [];
         foreach ($st->fetchAll() as $item) {
@@ -52,9 +43,12 @@ function shoeskopo_save_cart(PDO $pdo, array $cart): void {
     shoeskopo_cart_table($pdo);
     $pdo->beginTransaction();
     try {
-        $del = $pdo->prepare('DELETE FROM customer_cart_items WHERE user_id=?');
+        $del = $pdo->prepare('DELETE 
+FROM customer_cart_items 
+WHERE user_id=?');
         $del->execute([(int)$user['id']]);
-        $ins = $pdo->prepare('INSERT INTO customer_cart_items (user_id,product_id,product_name,price,image_url,size,quantity) VALUES (?,?,?,?,?,?,?)');
+        $ins = $pdo->prepare('INSERT INTO customer_cart_items (user_id,product_id,product_name,price,image_url,size,quantity) 
+VALUES (?,?,?,?,?,?,?)');
         foreach ($cart as $item) {
             $ins->execute([(int)$user['id'], (int)$item['product_id'], (string)$item['name'], (float)$item['price'], $item['image_url'] ?? null, (string)($item['size'] ?? ''), max(1,(int)$item['quantity'])]);
         }
@@ -69,7 +63,9 @@ function shoeskopo_clear_cart(PDO $pdo): void {
     $user = current_user();
     if ($user && ($user['role'] ?? '') === 'customer') {
         shoeskopo_cart_table($pdo);
-        $st = $pdo->prepare('DELETE FROM customer_cart_items WHERE user_id=?');
+        $st = $pdo->prepare('DELETE 
+FROM customer_cart_items 
+WHERE user_id=?');
         $st->execute([(int)$user['id']]);
     }
 }
@@ -84,7 +80,9 @@ function require_login(): void {
     // Refresh the account status from the database so deactivated accounts lose access.
     if (isset($GLOBALS['pdo'])) {
         try {
-            $st = $GLOBALS['pdo']->prepare('SELECT is_active, role FROM users WHERE id = ?');
+            $st = $GLOBALS['pdo']->prepare('SELECT is_active, role 
+FROM users 
+WHERE id = ?');
             $st->execute([(int)current_user()['id']]);
             $account = $st->fetch();
             if (!$account || (int)($account['is_active'] ?? 1) !== 1) {

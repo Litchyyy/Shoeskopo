@@ -1,159 +1,162 @@
 <?php
 require_once __DIR__ . '/config/db.php';
 require_once __DIR__ . '/includes/functions.php';
-require_role(['admin']);
+require_login();
 
-$statuses = ['Pending', 'Processing', 'Shipped', 'Completed', 'Cancelled'];
-$error = '';
-function notify_order_status(PDO $pdo, int $orderId, string $newStatus): bool {
-    $st = $pdo->prepare('SELECT o.*, u.email, p.payment_method, p.payment_status, p.cash_received, p.change_due, p.paid_at FROM orders o JOIN users u ON u.id=o.user_id LEFT JOIN payments p ON p.order_id=o.id WHERE o.id=?');
-    $st->execute([$orderId]); $o = $st->fetch();
-    if (!$o || !filter_var((string)($o['email'] ?? ''), FILTER_VALIDATE_EMAIL)) return false;
-    $it = $pdo->prepare('SELECT product_name,size,quantity,unit_price FROM order_items WHERE order_id=?');
-    $it->execute([$orderId]); $rows = $it->fetchAll();
-    $items = []; $subtotal = 0.0; $details = '';
-    foreach ($rows as $item) {
-        $line = (float)$item['unit_price'] * (int)$item['quantity']; $subtotal += $line;
-        $items[] = ['name'=>(string)$item['product_name'], 'size'=>(string)($item['size'] ?? ''), 'quantity'=>(int)$item['quantity'], 'unit_price'=>(float)$item['unit_price']];
-        $details .= '<tr><td style="padding:10px;border-bottom:1px solid #ddd">'.htmlspecialchars((string)$item['product_name'], ENT_QUOTES, 'UTF-8').(!empty($item['size']) ? ' (Size '.htmlspecialchars((string)$item['size'], ENT_QUOTES, 'UTF-8').')' : '').'</td><td style="padding:10px;text-align:center;border-bottom:1px solid #ddd">'.(int)$item['quantity'].'</td><td style="padding:10px;text-align:right;border-bottom:1px solid #ddd">₱'.number_format($line,2).'</td></tr>';
-    }
-    $name = htmlspecialchars((string)($o['full_name'] ?? 'Customer'), ENT_QUOTES, 'UTF-8');
-    $date = htmlspecialchars((string)($o['paid_at'] ?: $o['created_at']), ENT_QUOTES, 'UTF-8');
-    $total = (float)$o['total']; $discount = max(0, $subtotal - $total);
-    $money = static fn($v) => '₱'.number_format((float)$v, 2);
-    $body = '<div style="font-family:Arial,sans-serif;color:#222;line-height:1.6;max-width:680px;margin:auto"><p>Dear '.$name.',</p><p>Thank you for shopping with Shoeskopo! We are pleased to inform you that your purchase has been successfully completed.</p><p>Please find your official sales receipt attached to this email for your reference.</p><div style="text-align:center;background:#f6a23a;padding:20px"><h1 style="margin:0">SHOESKOPO</h1><h2 style="margin:6px 0">OFFICIAL SALES RECEIPT</h2><strong>Payment Confirmed</strong><p style="margin:5px 0">Thank you for your purchase!</p></div><p><b>Receipt No.:</b> #'.$orderId.'<br><b>Date:</b> '.$date.'<br><b>Customer:</b> '.$name.'</p><h3>Purchase Details</h3><table style="width:100%;border-collapse:collapse"><thead><tr><th style="text-align:left;padding:10px;border-bottom:2px solid #222">Product</th><th style="padding:10px;border-bottom:2px solid #222">Qty.</th><th style="text-align:right;padding:10px;border-bottom:2px solid #222">Subtotal</th></tr></thead><tbody>'.$details.'</tbody></table><p style="text-align:right">Subtotal: '.$money($subtotal).'<br>Discount: '.$money($discount).'<br><strong style="font-size:18px">Grand Total: '.$money($total).'</strong></p><p><b>Payment Method:</b> '.htmlspecialchars((string)($o['payment_method'] ?: 'Cash'), ENT_QUOTES, 'UTF-8').'<br><b>Payment Status:</b> '.htmlspecialchars((string)($o['payment_status'] ?: 'Paid'), ENT_QUOTES, 'UTF-8').'<br><b>Sale Status:</b> '.htmlspecialchars($newStatus, ENT_QUOTES, 'UTF-8').'</p><p>Your transaction has been recorded successfully. Please keep this email and the attached official sales receipt as proof of your purchase.</p><p>If you have any questions or concerns regarding your purchase, please feel free to contact our support team. We will be happy to assist you.</p><p>Thank you for choosing Shoeskopo and for your continued trust and support. We look forward to serving you again!</p><p>Best regards,<br><b>Shoeskopo Sales Team</b><br>Customer Support<br>Shoeskopo | Quality Footwear, Reliable Service</p></div>';
-    $pdf = shoeskopo_make_receipt_pdf([
-        'receipt_no'=>$orderId, 'date'=>(string)($o['paid_at'] ?: $o['created_at']),
-        'customer'=>(string)($o['full_name'] ?? 'Customer'), 'items'=>$items,
-        'subtotal'=>$subtotal, 'discount'=>$discount, 'grand_total'=>$total,
-        'cash_received'=>(float)($o['cash_received'] ?? $total), 'change'=>(float)($o['change_due'] ?? 0),
-        'payment_method'=>(string)($o['payment_method'] ?: 'Cash'),
-        'payment_status'=>(string)($o['payment_status'] ?: 'Paid'), 'sale_status'=>$newStatus
-    ]);
-    return shoeskopo_send_mail((string)$o['email'], 'Shoeskopo | Sale Completed – Official Sales Receipt', $body, 'Shoeskopo-Order-'.$orderId.'-Receipt.pdf', $pdf);
+$user = current_user();
+$role = strtolower(trim((string)($user['role'] ?? '')));
+if ($role !== 'customer') {
+    if ($role === 'admin') { header('Location: admin/orders.php'); exit; }
+    if ($role === 'employee') { header('Location: employee/index.php'); exit; }
+    http_response_code(403);
+    exit('Access denied.');
 }
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $id = (int)($_POST['id'] ?? 0);
-    $action = $_POST['action'] ?? 'status';
-
-    try {
-        if ($id < 1 && $action !== 'create') {
-            throw new RuntimeException('Invalid order.');
-        }
-
-        if ($action === 'create') {
-            throw new RuntimeException('Sales can only be created through customer purchases.');
-        } elseif ($action === 'edit') {
-            $total = (float)($_POST['total'] ?? 0);
-            $status = $_POST['status'] ?? '';
-            if ($total <= 0 || !in_array($status, $statuses, true)) {
-                throw new RuntimeException('Enter a valid sale total and status.');
-            }
-            if ($status === 'Completed') {
-                $paymentStmt = $pdo->prepare('SELECT payment_status FROM payments WHERE order_id = ?');
-                $paymentStmt->execute([$id]);
-                if ($paymentStmt->fetchColumn() !== 'Paid') {
-                    throw new RuntimeException('Record the cash payment before completing this sale.');
-                }
-            }
-            $oldStmt=$pdo->prepare('SELECT status FROM orders WHERE id=?'); $oldStmt->execute([$id]); $oldStatus=$oldStmt->fetchColumn();
-            $stmt = $pdo->prepare('UPDATE orders SET total = ?, status = ? WHERE id = ?');
-            $stmt->execute([$total, $status, $id]);
-            if ($oldStatus !== $status) { $mailSent = notify_order_status($pdo,$id,$status); $_SESSION['order_mail_notice'] = $mailSent ? 'Customer notification sent to the email sandbox.' : 'Sale updated, but the email failed. Check the PHP/Apache error log for a [Shoeskopo mail] diagnostic.'; }
-        } elseif ($action === 'delete') {
-            $pdo->beginTransaction();
-            $items = $pdo->prepare('SELECT product_id, quantity FROM order_items WHERE order_id = ?');
-            $items->execute([$id]);
-            $restore = $pdo->prepare('UPDATE products SET stock = stock + ? WHERE id = ?');
-            foreach ($items as $item) {
-                $restore->execute([(int)$item['quantity'], (int)$item['product_id']]);
-            }
-            $stmt = $pdo->prepare('DELETE FROM inventory_logs WHERE reference_type = \'order\' AND reference_id = ?');
-            $stmt->execute([$id]);
-            $stmt = $pdo->prepare('DELETE FROM order_items WHERE order_id = ?');
-            $stmt->execute([$id]);
-            $stmt = $pdo->prepare('DELETE FROM payments WHERE order_id = ?');
-            $stmt->execute([$id]);
-            $stmt = $pdo->prepare('DELETE FROM orders WHERE id = ?');
-            $stmt->execute([$id]);
-            $pdo->commit();
-            header('Location: orders.php?updated=1');
-            exit;
-        } elseif ($action === 'status') {
-            $status = $_POST['status'] ?? '';
-            if (!in_array($status, $statuses, true)) {
-                throw new RuntimeException('Invalid order status.');
-            }
-            // Completed sales must have recorded payment first.
-            if ($status === 'Completed') {
-                $stmt = $pdo->prepare("SELECT payment_status FROM payments WHERE order_id = ?");
-                $stmt->execute([$id]);
-                if ($stmt->fetchColumn() !== 'Paid') {
-                    throw new RuntimeException('Record the cash payment before completing this sale.');
-                }
-            }
-            $oldStmt=$pdo->prepare('SELECT status FROM orders WHERE id=?'); $oldStmt->execute([$id]); $oldStatus=$oldStmt->fetchColumn();
-            $stmt = $pdo->prepare('UPDATE orders SET status = ? WHERE id = ?');
-            $stmt->execute([$status, $id]);
-            if ($oldStatus !== $status) { $mailSent = notify_order_status($pdo,$id,$status); $_SESSION['order_mail_notice'] = $mailSent ? 'Customer notification sent to the email sandbox.' : 'Sale updated, but the email failed. Check the PHP/Apache error log for a [Shoeskopo mail] diagnostic.'; }
-        }
-
-        header('Location: orders.php?updated=1');
-        exit;
-    } catch (Throwable $e) {
-        if ($pdo->inTransaction()) { $pdo->rollBack(); }
-        $error = $e instanceof RuntimeException ? $e->getMessage() : 'Could not update this sale. Check that the payments table migration has been imported.';
-    }
-}
-
-$orders = $pdo->query(
-    'SELECT o.*, u.email, p.payment_status, p.cash_received, p.change_due
-     FROM orders o JOIN users u ON u.id = o.user_id
+// A customer can only see orders associated with their own account.
+$stmt = $pdo->prepare(
+    'SELECT o.id, o.created_at, o.total, o.status, o.full_name,
+            p.payment_method, p.payment_status
+     FROM orders o
      LEFT JOIN payments p ON p.order_id = o.id
-     ORDER BY o.created_at DESC'
-)->fetchAll();
+     WHERE o.user_id = ?
+     ORDER BY o.created_at DESC, o.id DESC'
+);
+$stmt->execute([(int)($user['id'] ?? 0)]);
+$orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-$completedCount = (int)$pdo->query("SELECT COUNT(*) FROM orders WHERE status = 'Completed'")->fetchColumn();
-$completedTotal = (float)$pdo->query(
-    "SELECT COALESCE(SUM(total), 0)
-     FROM orders
-     WHERE status = 'Completed'"
-)->fetchColumn();
-$allExpenses = (float)$pdo->query(
-    'SELECT COALESCE(SUM(amount), 0)
-     FROM expenses'
-)->fetchColumn();
-$netCompletedSales = $completedTotal - $allExpenses;
+$itemStmt = $pdo->prepare(
+    'SELECT product_name, size, quantity, unit_price
+     FROM order_items
+     WHERE order_id = ?
+     ORDER BY id ASC'
+);
 
-$pageTitle = 'Sale Management';
-include __DIR__ . '/../includes/header.php';
+$pageTitle = 'My Orders';
+include __DIR__ . '/includes/header.php';
+
+$statusClass = static function ($value): string {
+    $value = strtolower(trim((string)$value));
+    if (in_array($value, ['completed', 'delivered', 'paid', 'success'], true)) return 'is-success';
+    if (in_array($value, ['cancelled', 'canceled', 'failed', 'refunded'], true)) return 'is-danger';
+    if (in_array($value, ['processing', 'shipped', 'out for delivery'], true)) return 'is-progress';
+    return 'is-pending';
+};
 ?>
-<div class="admin-shell">
-<h1>SALE MANAGEMENT</h1>
-<?= admin_navigation('orders.php') ?>
-<div class="stat-grid"><div class="stat-card">Completed orders<strong><?= $completedCount ?></strong></div><div class="stat-card">Completed sales (gross)<strong><?= money($completedTotal) ?></strong></div><div class="stat-card">Total expenses<strong><?= money($allExpenses) ?></strong></div><div class="stat-card">Sales after expenses<strong><?= money($netCompletedSales) ?></strong></div></div>
-<p class="muted">All orders, including pending and completed sales, are shown below. Update an order's status here. Completed orders are included in the completed sales totals above automatically.</p>
-<?php if ($error): ?><div class="form-error"><?= e($error) ?></div><?php endif; ?>
-<?php if (isset($_GET['updated'])): ?><div class="form-success">Sale updated successfully.</div><?php endif; ?><?php if (!empty($_SESSION['order_mail_notice'])): ?><div class="<?= (str_contains($_SESSION['order_mail_notice'], 'failed') || str_contains($_SESSION['order_mail_notice'], 'not sent')) ? 'form-error' : 'form-success' ?>"><?= e($_SESSION['order_mail_notice']) ?></div><?php unset($_SESSION['order_mail_notice']); endif; ?>
-<div class="table-wrap"><table class="data-table"><thead><tr><th>Order</th><th>Customer</th><th>Date</th><th>Total</th><th>Payment</th><th>Receipt</th><th>Status</th></tr></thead><tbody>
-<?php foreach ($orders as $o): ?>
-<tr>
-<td>#<?= (int)$o['id'] ?></td><td><?= e($o['full_name'] ?? '') ?><br><small><?= e($o['email']) ?></small></td><td><?= e($o['created_at']) ?></td><td><?= money($o['total']) ?></td><td><?= e($o['payment_status'] ?? 'Pending') ?></td>
-<td><?php if (($o['payment_status'] ?? 'Pending') === 'Paid'): ?><a href="../receipt.php?order=<?= (int)$o['id'] ?>" target="_blank">View receipt</a><div class="muted"><?= money($o['cash_received']) ?> paid<br>Change <?= money($o['change_due']) ?></div><?php else: ?><span class="muted">Payment required</span><?php endif; ?></td>
-<td>
-<form method="post" class="inline-form">
-    <input type="hidden" name="action" value="edit"><input type="hidden" name="id" value="<?= (int)$o['id'] ?>">
-    <input type="number" name="total" min="0.01" step="0.01" value="<?= e((string)$o['total']) ?>" required style="width:110px">
-    <select name="status"><?php foreach ($statuses as $s): ?><option value="<?= e($s) ?>" <?= $o['status'] === $s ? 'selected' : '' ?>><?= e($s) ?></option><?php endforeach; ?></select>
-    <button type="submit" class="btn icon-button" style="padding:8px" aria-label="Save changes" title="Save changes">💾</button>
-</form>
-<form method="post" onsubmit="return confirm('Delete this sale? Product quantities will be returned to stock.')" style="margin-top:6px">
-    <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int)$o['id'] ?>">
-    <button type="submit" class="btn">Delete sale</button>
-</form>
-</td>
-</tr>
-<?php endforeach; ?>
-</tbody></table></div></div>
-<?php include __DIR__ . '/../includes/footer.php'; ?>
+<style>
+.orders-page{max-width:1180px;margin:0 auto;padding:38px 4% 56px;color:#171717}
+.orders-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:18px;margin-bottom:26px;flex-wrap:wrap}
+.orders-heading h1{font-size:clamp(28px,4vw,38px);letter-spacing:-.8px;margin:0 0 8px}
+.orders-heading p{margin:0;color:#707070;line-height:1.5}
+.orders-count{background:#f3f3f3;border-radius:999px;padding:9px 14px;font-size:13px;font-weight:700;white-space:nowrap}
+.orders-list{display:grid;gap:22px}
+.order-card{border:1px solid #e6e6e6;border-radius:15px;background:#fff;overflow:hidden;box-shadow:0 5px 20px rgba(0,0,0,.045)}
+.order-card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:22px 24px;background:#fafafa;border-bottom:1px solid #e9e9e9;flex-wrap:wrap}
+.order-number{margin:0 0 7px;font-size:20px;font-weight:800}
+.order-date{margin:0;color:#777;font-size:13px}
+.order-statuses{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.order-pill{display:inline-flex;align-items:center;gap:6px;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:800;text-transform:capitalize;white-space:nowrap}
+.order-pill.is-success{background:#e6f6eb;color:#176b36}.order-pill.is-danger{background:#fde8e7;color:#a12622}.order-pill.is-progress{background:#e8efff;color:#244e9a}.order-pill.is-pending{background:#fff1d8;color:#8b5a08}
+.order-items-wrap{padding:4px 24px 0}
+.order-items{width:100%;border-collapse:collapse;min-width:420px}
+.order-items th{font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:#777;font-weight:800;background:#fff}
+.order-items th,.order-items td{padding:15px 12px;border-bottom:1px solid #eee;text-align:left;vertical-align:middle}
+.order-items th:first-child,.order-items td:first-child{padding-left:0}
+.order-items th:last-child,.order-items td:last-child{padding-right:0;text-align:right}
+.order-items td{font-size:14px}.order-product{font-weight:700}.order-size,.order-qty{color:#666}.order-money{white-space:nowrap;font-variant-numeric:tabular-nums}
+.order-bottom{display:flex;align-items:flex-start;justify-content:space-between;gap:22px;padding:20px 24px 24px;flex-wrap:wrap}
+.order-payment{color:#737373;font-size:13px;line-height:1.8}.order-payment strong{color:#333;font-weight:700}
+.order-total{min-width:220px;text-align:right;margin-left:auto}.order-total-label{font-size:12px;color:#777;text-transform:uppercase;letter-spacing:.7px;font-weight:800}.order-total-amount{font-size:26px;font-weight:800;letter-spacing:-.5px;margin:4px 0 14px;font-variant-numeric:tabular-nums}
+.order-actions{display:flex;justify-content:flex-end;gap:10px;flex-wrap:wrap}.order-receipt-btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 16px;border-radius:8px;background:#315da9;color:#fff;font-size:12px;font-weight:800;letter-spacing:.25px}.order-receipt-btn:hover{background:#254a88}
+.orders-empty{border:1px dashed #d7d7d7;background:#fafafa;border-radius:16px;padding:54px 20px;text-align:center}.orders-empty-icon{width:58px;height:58px;display:grid;place-items:center;margin:0 auto 16px;background:#eee;border-radius:50%;font-size:27px}.orders-empty h2{font-size:22px;margin:0 0 9px}.orders-empty p{color:#777;margin:0 auto 22px;line-height:1.6;max-width:420px}.orders-shop-btn{display:inline-flex;padding:12px 18px;background:#171717;color:#fff;border-radius:8px;font-weight:800;font-size:12px;letter-spacing:.3px}.orders-shop-btn:hover{background:#333}
+@media(max-width:640px){.orders-page{padding:27px 16px 40px}.order-card-head{padding:18px}.order-statuses{justify-content:flex-start}.order-items-wrap{padding:0 18px}.order-bottom{padding:18px;display:block}.order-total{min-width:0;text-align:left;margin-top:18px;padding-top:16px;border-top:1px solid #eee}.order-actions{justify-content:flex-start}.order-receipt-btn{width:100%}.order-items{min-width:400px}.order-number{font-size:18px}}
+</style>
+
+<section class="orders-page">
+  <div class="orders-heading">
+    <div>
+      <h1>My Orders</h1>
+      <p>Track your purchases, check payment details, and view your receipts.</p>
+    </div>
+    <div class="orders-count"><?= count($orders) ?> <?= count($orders) === 1 ? 'order' : 'orders' ?></div>
+  </div>
+
+  <?php if (!$orders): ?>
+    <div class="orders-empty">
+      <div class="orders-empty-icon" aria-hidden="true">🛍</div>
+      <h2>No orders yet</h2>
+      <p>Your orders will appear here after you complete a checkout. Start shopping and your purchase history will be saved to your account.</p>
+      <a class="orders-shop-btn" href="index.php">CONTINUE SHOPPING</a>
+    </div>
+  <?php else: ?>
+    <div class="orders-list">
+      <?php foreach ($orders as $order): ?>
+        <?php
+          $itemStmt->execute([(int)$order['id']]);
+          $items = $itemStmt->fetchAll(PDO::FETCH_ASSOC);
+          $orderStatus = trim((string)($order['status'] ?? 'Pending')) ?: 'Pending';
+          $paymentStatus = trim((string)($order['payment_status'] ?? 'Pending')) ?: 'Pending';
+          $paymentMethod = trim((string)($order['payment_method'] ?? ''));
+          try {
+              $orderDate = (new DateTime((string)$order['created_at']))->format('M j, Y · g:i A');
+          } catch (Throwable $exception) {
+              $orderDate = (string)$order['created_at'];
+          }
+        ?>
+        <article class="order-card">
+          <div class="order-card-head">
+            <div>
+              <p class="order-date">Placed on <?= e($orderDate) ?></p>
+            </div>
+            <div class="order-statuses" aria-label="Order and payment status">
+              <span class="order-pill <?= e($statusClass($orderStatus)) ?>">Order: <?= e($orderStatus) ?></span>
+              <span class="order-pill <?= e($statusClass($paymentStatus)) ?>">Payment: <?= e($paymentStatus) ?></span>
+            </div>
+          </div>
+
+          <div class="order-items-wrap">
+            <div class="table-wrap">
+              <table class="order-items">
+                <thead>
+                  <tr><th>Product</th><th>Size</th><th>Qty</th></tr>
+                </thead>
+                <tbody>
+                  <?php if (!$items): ?>
+                    <tr><td colspan="3" style="padding:20px 0;color:#777">No item details are available for this order.</td></tr>
+                  <?php else: ?>
+                    <?php foreach ($items as $item): ?>
+                      <?php $qty = max(0, (int)$item['quantity']); ?>
+                      <tr>
+                        <td class="order-product"><?= e((string)$item['product_name']) ?></td>
+                        <td class="order-size"><?= e(trim((string)($item['size'] ?? '')) ?: '—') ?></td>
+                        <td class="order-qty"><?= $qty ?></td>
+                      </tr>
+                    <?php endforeach; ?>
+                  <?php endif; ?>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="order-bottom">
+            <div class="order-payment">
+              <?php if ($paymentMethod !== ''): ?><div>Payment method: <strong><?= e($paymentMethod) ?></strong></div><?php endif; ?>
+            </div>
+            <div class="order-total">
+              <div class="order-total-label">Order total</div>
+              <div class="order-total-amount"><?= money($order['total'] ?? 0) ?></div>
+              <div class="order-actions">
+                <?php if (strtolower($paymentStatus) === 'paid'): ?>
+                  <a class="order-receipt-btn" href="receipt.php?order=<?= (int)$order['id'] ?>">
+                    <span aria-hidden="true">▤</span> VIEW RECEIPT
+                  </a>
+                <?php endif; ?>
+              </div>
+            </div>
+          </div>
+        </article>
+      <?php endforeach; ?>
+    </div>
+  <?php endif; ?>
+</section>
+
+<?php include __DIR__ . '/includes/footer.php'; ?>

@@ -4,7 +4,7 @@ declare(strict_types=1);
 $host = 'localhost';
 $dbname = 'shoeskopo_db';
 $dbuser = 'root';
-$dbpass = ''; // Default XAMPP MySQL password is usually blank.
+$dbpass = ''; 
 
 try {
     $pdo = new PDO(

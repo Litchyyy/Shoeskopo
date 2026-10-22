@@ -32,23 +32,26 @@ if (!isset($orderBy[$sort])) {
 
 // Load categories
 $categories = $pdo->query(
-    "SELECT id, name, audience FROM categories ORDER BY name"
+    "SELECT id, name, audience 
+FROM categories 
+ORDER BY name"
 )->fetchAll();
 
 // Load featured products
 $featured = $pdo->query(
-    "SELECT id, name, image_url
-     FROM products
-     WHERE is_featured = 1
-     ORDER BY created_at DESC
-     LIMIT 4"
+    "SELECT id, name, image_url 
+FROM products 
+WHERE is_featured = 1 AND stock > 0 
+ORDER BY created_at DESC 
+LIMIT 4"
 )->fetchAll();
 
 // Build product query
-$sql = "SELECT p.*, c.name AS category_name
-        FROM products p
-        LEFT JOIN categories c ON c.id = p.category_id
-        WHERE 1=1";
+$sql = "SELECT p.*, c.name AS category_name 
+FROM products p 
+    LEFT 
+    JOIN categories c ON c.id = p.category_id 
+WHERE p.stock > 0";
 
 $args = [];
 
@@ -139,7 +142,8 @@ include __DIR__ . '/includes/header.php';
   <h2>ITEMS</h2>
 </div>
 
-  <form method="get" action="index.php" class="inline-form search-filter">
+  <style>.icon-action{width:44px;height:44px;border:0;border-radius:10px;background:#f4a261;color:#222;font-size:25px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center}.icon-action:hover{filter:brightness(.95)}</style>
+<form method="get" action="index.php" class="inline-form search-filter">
     <input
       type="search"
       name="q"
@@ -171,9 +175,8 @@ include __DIR__ . '/includes/header.php';
       <option value="name" <?= $sort === 'name' ? 'selected' : '' ?>>Name A-Z</option>
     </select>
 
-    <button type="submit" class="btn btn-blue">Apply</button>
-
-    <a class="btn" href="index.php#items">Clear filters</a>
+    <button type="submit" name="apply_search" value="1" class="icon-action" aria-label="Search products" title="Search"><span aria-hidden="true">⌕</span></button>
+    <button type="submit" name="apply_filter" value="1" class="icon-action" aria-label="Apply filters" title="Apply filters"><span aria-hidden="true">☷</span></button>
   </form>
 
   <?php if (!$products): ?>
