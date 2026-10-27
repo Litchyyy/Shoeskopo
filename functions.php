@@ -122,8 +122,8 @@ function shoeskopo_make_pdf(string $text): string {
 function shoeskopo_send_mail(string $to, string $subject, string $body, ?string $attachmentName = null, ?string $attachmentData = null): bool {
     $log = static function (string $message): void { error_log('[Shoeskopo mail] ' . $message); };
     try {
-        $cfg = require __DIR__ . '/../config/mail.php';
-        $autoload = __DIR__ . '/../vendor/autoload.php';
+        $cfg = require __DIR__ . '/config/mail.php';
+        $autoload = __DIR__ . '/vendor/autoload.php';
         if (!is_file($autoload)) { $log('PHPMailer is not installed. Run composer require phpmailer/phpmailer from the project folder.'); return false; }
         require_once $autoload;
         if (empty($cfg['enabled'])) { $log('Sending is disabled in config/mail.php.'); return false; }
